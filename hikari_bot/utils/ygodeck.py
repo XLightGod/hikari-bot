@@ -135,14 +135,14 @@ def parse_ydk(deck_text):
 
 
 
-async def batch_get_images(card_ids, width=200, height=290):
+async def batch_get_images(card_ids, type=""):
     # 并发下载图片
-    tasks = [get_ygopic(card_id) for card_id in card_ids]
+    tasks = [get_ygopic(card_id, type) for card_id in card_ids]
     images = await asyncio.gather(*tasks)
     result = []
     for img in images:
         if img is not None:
-            result.append(Image.open(BytesIO(img)).resize((width, height)))
+            result.append(Image.open(BytesIO(img)))
     return result
 
 
@@ -230,7 +230,7 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
     # 批量获取卡片图片
     all_card_ids = main_deck + extra_deck + side_deck
-    all_card_images = await batch_get_images(all_card_ids)
+    all_card_images = await batch_get_images(all_card_ids, "!half")
 
     # 分割批量获取的图片结果
     main_images = all_card_images[:len(main_deck)]
@@ -279,11 +279,11 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
 
 async def generate_card_list_image(id_list):
-    card_width, card_height = 200, 290
+    card_width, card_height = 82, 120
     cards_per_row = 15
-    padding = 3
-    margin = 10
-    all_card_images = await batch_get_images(id_list, card_width, card_height)
+    padding = 1
+    margin = 5
+    all_card_images = await batch_get_images(id_list, "!thumb2")
     n = len(all_card_images)
     rows = (n + cards_per_row - 1) // cards_per_row
     total_width = cards_per_row * (card_width + padding) + padding + 2 * margin

@@ -121,8 +121,8 @@ async def get_unknown_card():
         return None
 
 
-async def get_ygopic(id: int):
-    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg!half"
+async def get_ygopic(id: int, type: str = ""):
+    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg{type}"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
@@ -135,6 +135,7 @@ async def get_ygopic(id: int):
     except Exception as e:
         print(f"Error loading image {url}: {e}")
         return await get_unknown_card()
+
 
 
 async def get_image_by_id(id: int):

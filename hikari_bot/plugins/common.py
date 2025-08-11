@@ -136,7 +136,7 @@ async def handle_friend_request(bot: Bot, event: FriendRequestEvent):
 srdslist = on_command('队员列表', permission=SUPERUSER)
 
 @srdslist.handle()
-async def _(bot: Bot, event: MessageEvent):
+async def _(bot: Bot, event: GroupMessageEvent):
     group_id = event.group_id
 
     member_list = await bot.get_group_member_list(group_id=group_id)
