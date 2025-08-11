@@ -6,6 +6,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.params import CommandArg
 from hikari_bot.utils.ygocard import *
+from hikari_bot.utils.ygodeck import *
 
 ygo_random_card = on_command("随机一卡", priority=5)
 @ygo_random_card.handle()
@@ -163,6 +164,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         if not result:
             await ygo_metaltronus_calc.finish("没有满足条件的卡片！")
         else:
-            msg = "满足条件的卡片：\n" + "、".join(result)
-            await ygo_metaltronus_calc.finish(msg)
+            image = generate_card_list_image(result)
+            if not image:
+                await ygo_metaltronus_calc.finish("结果加载失败！")
+                
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+            await ygo_metaltronus_calc.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 

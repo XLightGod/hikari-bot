@@ -65,23 +65,24 @@ def metaltronus_calc(id: int):
         if same >= 2:
             id_list.append(cid)
 
-    # 根据id_list查找卡名
+    # 根据id_list查找卡名，并按name去重，返回id
     if not id_list:
         conn.close()
         return []
-    # texts表中id和name
     qmarks = ','.join(['?'] * len(id_list))
-    cursor.execute(f"SELECT name FROM texts WHERE id IN ({qmarks})", id_list)
-    raw_names = [row[0] for row in cursor.fetchall()]
-    # 去重且保持顺序
+    cursor.execute(f"SELECT id, name FROM texts WHERE id IN ({qmarks})", id_list)
+    id_name_pairs = cursor.fetchall()
     seen = set()
-    name_list = []
-    for name in raw_names:
-        if name not in seen:
+    result_ids = []
+    # 保持原id_list顺序
+    id_to_name = {id_: name for id_, name in id_name_pairs}
+    for cid in id_list:
+        name = id_to_name.get(cid)
+        if name and name not in seen:
             seen.add(name)
-            name_list.append(name)
+            result_ids.append(cid)
     conn.close()
-    return name_list
+    return result_ids
 
 
 def random_card():

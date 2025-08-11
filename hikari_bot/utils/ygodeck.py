@@ -132,8 +132,8 @@ def parse_ydk(deck_text):
     return main_deck, extra_deck, side_deck
 
 
-def batch_get_images(card_ids):
-    return [get_ygopic(card_id).resize((200,290)) for card_id in card_ids]
+def batch_get_images(card_ids, width=200, height=290):
+    return [get_ygopic(card_id).resize((width,height)) for card_id in card_ids]
 
 
 def draw_section(img, card_images, title, start_x, start_y, card_width, card_height, rows, padding):
@@ -265,6 +265,29 @@ def generate_deck_image(deck_text, id, match, result="", deck_name=""):
     draw.text((text_x, text_y), id, fill="black", font=font)
 
     return img
+
+
+
+def generate_card_list_image(id_list):
+    card_width, card_height = 200, 290
+    cards_per_row = 15
+    padding = 5
+    margin = 30
+    all_card_images = batch_get_images(id_list, card_width, card_height)
+    n = len(all_card_images)
+    rows = (n + cards_per_row - 1) // cards_per_row
+    total_width = cards_per_row * (card_width + padding) + padding + 2 * margin
+    total_height = rows * (card_height + padding) + padding + 2 * margin
+
+    img = Image.new("RGB", (total_width, total_height), color="white")
+    for i, card_img in enumerate(all_card_images):
+        if card_img:
+            x = (i % cards_per_row) * (card_width + padding) + margin + padding
+            y = (i // cards_per_row) * (card_height + padding) + margin + padding
+            img.paste(card_img, (x, y))
+    return img
+
+
 
 def generate_subset_font(original_font_path, output_font_path, text):
     characters = ''.join(sorted(set(c for c in text)))
