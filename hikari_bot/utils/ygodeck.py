@@ -279,9 +279,9 @@ async def generate_deck_image(deck_text, id, match, result="", deck_name=""):
 
 
 async def generate_card_list_image(id_list):
-    card_width, card_height = 100, 145
+    card_width, card_height = 200, 290
     cards_per_row = 15
-    padding = 2
+    padding = 3
     margin = 10
     all_card_images = await batch_get_images(id_list, card_width, card_height)
     n = len(all_card_images)
