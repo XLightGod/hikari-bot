@@ -3,7 +3,7 @@ import html
 import io
 import os
 from nonebot import on_command, on_message
-from nonebot.adapters.onebot.v11 import Message, MessageSegment, GroupMessageEvent, PrivateMessageEvent
+from nonebot.adapters.onebot.v11 import Message, MessageSegment, PrivateMessageEvent
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
@@ -13,6 +13,7 @@ from hikari_bot.utils.ygomatch import *
 from hikari_bot.utils.ygodeck import *
 from hikari_bot.utils.constants import *
 from bs4 import BeautifulSoup
+import aiohttp
 
 ygomatch_search = on_command("比赛查询", priority=5)
 @ygomatch_search.handle()
@@ -55,9 +56,17 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 {parsed_prize}""")
 
 
+
 ygomatch_avatar = on_command("头像压缩", priority=5)
 @ygomatch_avatar.handle()
 async def _(bot: Bot, event: MessageEvent):
+    async def fetch_image(url: str):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    return await resp.read()
+                return None
+    
     # 获取消息中的图片文件
     msg = event.get_message()
     image_file = None
@@ -100,6 +109,7 @@ async def _(bot: Bot, event: MessageEvent):
 
     # 将处理后的图片发送回用户
     await bot.send(event, MessageSegment.image(buffer))
+
 
 
 check_in = on_command("比赛签到", aliases={"签到"}, priority=5)
@@ -157,6 +167,8 @@ async def _(bot: Bot, event: PrivateMessageEvent, state: T_State, matcher: Match
 
     matcher.stop_propagation()
     await check_in.finish(f"您的参赛ID为【{xcx_name}】，请提交您比赛使用的卡组（链接或文件）：")
+
+
 
 quit = on_command("退赛", priority=5)
 @quit.handle()
@@ -277,6 +289,7 @@ async def _(bot: Bot, event: PrivateMessageEvent):
                     await collect_deck.finish("文件内容不是有效的卡组文件。")
 
 
+
 confirm_deck = on_command("比赛卡组确认", aliases={"卡组确认"}, priority=5)
 
 @confirm_deck.handle()
@@ -328,6 +341,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     await confirm_deck.finish(Message([MessageSegment("image", {"file": f"base64://{image_base64}"})]))
 
 
+
 generate_all_deck_image = on_command("环境统计", priority=5, permission=SUPERUSER)
 @generate_all_deck_image.handle()
 async def _(bot: Bot, event: MessageEvent):
@@ -344,6 +358,7 @@ async def _(bot: Bot, event: MessageEvent):
             output_directory = os.path.join(DECK_DIR, "pics")
             os.makedirs(output_directory, exist_ok=True)
             deck_img.save(os.path.join(output_directory, f"{xcx_name}.png"))
+
 
 
 pairing_info = on_command("对阵信息", priority=5, permission=SUPERUSER)
@@ -398,6 +413,7 @@ async def _(bot: Bot, event: MessageEvent):
             result_message += f"\n第{desk}桌：{at_a} vs {at_b}"
 
     await pairing_info.finish(Message(result_message))
+
 
 
 deck_list = on_command("卡表", aliases={"中文卡表", "简中卡表", "日文卡表", "英文卡表"}, priority=5)
@@ -472,9 +488,9 @@ async def _(bot: Bot, event: PrivateMessageEvent):
 #         await bot.upload_private_file(user_id=qq, file=file_path, name=file_name)
 
 
+
 deck_pic = on_command("生成卡组图片", aliases={"卡组图片", "卡组"}, priority=5)
 # 卡组 http xxx 比赛 卡组名称 成绩
-
 @deck_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     player_id = ""
@@ -509,9 +525,3 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
 
     await deck_pic.finish(Message([MessageSegment("image", {"file": f"base64://{image_base64}"})]))
-
-update_card_database = on_command("更新卡片数据库", priority=5)
-@update_card_database.handle()
-async def _(bot: Bot, event: MessageEvent):
-    update_cxx()
-    await update_card_database.finish("更新完成。")

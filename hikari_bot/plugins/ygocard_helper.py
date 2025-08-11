@@ -16,6 +16,7 @@ async def _(bot: Bot, event: MessageEvent):
     image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
     await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
+
 ygo_card_pic = on_command("查卡图", aliases={"游戏王卡图", "卡图"}, priority=5)
 @ygo_card_pic.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -48,6 +49,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         image_base64 = base64.b64encode(image).decode('utf-8')
         await ygo_card_pic.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
+
 ygo_card_id = on_command("查卡密", aliases={"游戏王卡密", "卡密"}, priority=5)
 @ygo_card_id.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -59,6 +61,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
         await ygo_card_id.finish(str(card_info["id"]))
 
+
 ygo_card_effect = on_command("查效果", aliases={"游戏王效果", "效果"}, priority=5)
 @ygo_card_effect.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -66,8 +69,8 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         card_info = await get_card_info(input)
 
         if not card_info:
-            return
-            #await ygo_card_effect.finish("未找到对应卡片！")
+            #return
+            await ygo_card_effect.finish("未找到对应卡片！")
 
         jp_name = card_info["jp_name"]
         cn_name = card_info["cn_name"]
@@ -83,6 +86,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
         await ygo_card_effect.finish(result)
 
+
 ygo_card_faq = on_command("查裁定", aliases={"游戏王裁定", "裁定"}, priority=5)
 @ygo_card_faq.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
@@ -90,13 +94,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         card_info = await get_card_info(input[0])
 
         if not card_info:
-            return
-            #await ygo_card_effect.finish("未找到对应卡片！")
+            #return
+            await ygo_card_faq.finish("未找到对应卡片！")
 
         faq_ids = card_info["faqs"]
 
         if len(faq_ids) == 0:
-            await ygo_card_effect.finish("暂无相关裁定！")
+            await ygo_card_faq.finish("暂无相关裁定！")
         
         message_2 = []
 
@@ -121,10 +125,10 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                         break
 
                 except Exception as e:
-                    await ygo_card_effect.finish("查询失败！")
+                    await ygo_card_faq.finish("查询失败！")
 
         if len(message_2) == 0:
-            await ygo_card_effect.finish("暂无相关裁定！")
+            await ygo_card_faq.finish("暂无相关裁定！")
         
         group_id = getattr(event, "group_id", None)
         try:
@@ -134,3 +138,25 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
                 await bot.call_api("send_private_forward_msg", user_id=event.user_id, messages=message_2)
         except Exception as e:
             print(f"发送失败：{e}")
+
+
+
+ygo_update_database = on_command("更新数据库", priority=5)
+@ygo_update_database.handle()
+async def _(bot: Bot, event: MessageEvent):
+    update_db()
+    await update_cdb()
+    await ygo_update_database.finish("更新完成。")
+
+
+
+ygo_metaltronus_calc = on_command("共界计算", priority=5)
+@ygo_metaltronus_calc.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if input:=args.extract_plain_text().strip():
+        card_info = await get_card_info(input)
+
+        if not card_info:
+            await ygo_card_effect.finish("未找到对应卡片！")
+            
+        

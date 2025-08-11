@@ -121,6 +121,7 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         add_mycard_user(qq, id)
         await mycard_bind.finish("绑定成功！")
 
+
 mycard_subscribe = on_command("订阅", priority=5)
 
 @mycard_subscribe.handle()
@@ -132,6 +133,7 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
             await mycard_subscribe.finish("请提供要订阅的用户名！")
         
         await mycard_subscribe.finish(f"订阅功能尚未实现，敬请期待！\n您订阅的用户名是：{id}")
+
 
 mycard_unsubscribe = on_command("取消订阅", priority=5)
 

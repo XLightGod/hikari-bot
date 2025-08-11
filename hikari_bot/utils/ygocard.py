@@ -4,12 +4,15 @@ import sqlite3
 import random
 from PIL import Image
 import aiohttp
+import asyncio
 from bs4 import BeautifulSoup
+from bs4.element import NavigableString
 from hikari_bot.utils.constants import *
 
 card_info_db = os.path.join(DATA_DIR, 'card_info.db')
+moecard_db = os.path.join(DATA_DIR, 'card.cdb')
 
-def update_cxx():
+def update_db():
     conn = sqlite3.connect(card_info_db)
     cursor = conn.cursor()
     
@@ -19,6 +22,19 @@ def update_cxx():
         conn.commit()
     finally:
         conn.close()
+
+
+async def update_cdb():
+    url = "https://cdn01.moecube.com/koishipro/ygopro-database/zh-CN/cards.cdb"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                data = await resp.read()
+                with open(moecard_db, "wb") as f:
+                    f.write(data)
+            else:
+                print(f"Download failed: {resp.status}")
+
 
 def random_card():
     cdb_path = os.path.join(YGOPRO, "cards.cdb")
@@ -190,7 +206,7 @@ async def get_qa_by_id(id: int):
                     html = await response.text()  # 获取网页 HTML
                     soup = BeautifulSoup(html, 'html.parser')  # 使用 BeautifulSoup 解析
                     for br_tag in soup.find_all('br'):
-                        br_tag.replace_with("\n")
+                        br_tag.replace_with(NavigableString("\n"))
                     q_div = soup.find('div', class_='qa question')
                     a_div = soup.find('div', class_='qa answer')
                     if q_div:
