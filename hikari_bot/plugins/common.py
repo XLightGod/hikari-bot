@@ -24,18 +24,26 @@ reload = on_command("重载插件", permission=SUPERUSER)
 @reload.handle()
 async def _(bot: Bot, event: MessageEvent):
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "git", "pull",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        git_output = stdout.decode().strip() + "\n" + stderr.decode().strip()
-        if proc.returncode != 0:
-            await reload.finish(f"更新失败：\n{git_output}")
-        else:
-            await reload.send("更新完成，正在重启...")
-            os._exit(0)
+        # 强制丢弃本地所有修改并拉取远程最新
+        cmds = [
+            ["git", "reset", "--hard"],
+            ["git", "clean", "-fd"],
+            ["git", "pull"]
+        ]
+        git_output = ""
+        for cmd in cmds:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            git_output += stdout.decode().strip() + "\n" + stderr.decode().strip() + "\n"
+            if proc.returncode != 0:
+                await reload.finish(f"更新失败：\n{git_output}")
+                return
+        await reload.send("更新完成，正在重启...")
+        os._exit(0)
     except Exception as e:
         await reload.finish(f"重载插件失败：{e}")
 
