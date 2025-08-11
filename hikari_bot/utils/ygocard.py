@@ -36,6 +36,47 @@ async def update_cdb():
                 print(f"Download failed: {resp.status}")
 
 
+def metaltronus_calc(id: int):
+    if not os.path.exists(moecard_db):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(update_cdb())
+
+    conn = sqlite3.connect(moecard_db)
+    cursor = conn.cursor()
+    # 获取目标卡片信息
+    cursor.execute("SELECT atk, race, attribute FROM datas WHERE id = ?", (id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return []
+    atk, race, attribute = row
+
+    # 查找所有卡片
+    cursor.execute("SELECT id, atk, race, attribute FROM datas WHERE id != ?", (id,))
+    id_list = []
+    for cid, catk, crace, cattribute in cursor.fetchall():
+        same = 0
+        if atk == catk:
+            same += 1
+        if race == crace:
+            same += 1
+        if attribute == cattribute:
+            same += 1
+        if same >= 2:
+            id_list.append(cid)
+
+    # 根据id_list查找卡名
+    if not id_list:
+        conn.close()
+        return []
+    # texts表中id和name
+    qmarks = ','.join(['?'] * len(id_list))
+    cursor.execute(f"SELECT name FROM texts WHERE id IN ({qmarks})", id_list)
+    name_list = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return name_list
+
+
 def random_card():
     cdb_path = os.path.join(YGOPRO, "cards.cdb")
     if not os.path.exists(cdb_path):

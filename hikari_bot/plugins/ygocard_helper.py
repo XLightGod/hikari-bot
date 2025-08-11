@@ -157,6 +157,12 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         card_info = await get_card_info(input)
 
         if not card_info:
-            await ygo_card_effect.finish("未找到对应卡片！")
-            
+            await ygo_metaltronus_calc.finish("未找到对应卡片！")
         
+        result = metaltronus_calc(card_info["id"])
+        if not result:
+            await ygo_metaltronus_calc.finish("没有满足条件的卡片！")
+        else:
+            msg = "满足条件的卡片：\n" + "\n".join(result)
+            await ygo_metaltronus_calc.finish(msg)
+
