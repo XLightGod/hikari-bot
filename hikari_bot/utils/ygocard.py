@@ -72,7 +72,14 @@ def metaltronus_calc(id: int):
     # texts表中id和name
     qmarks = ','.join(['?'] * len(id_list))
     cursor.execute(f"SELECT name FROM texts WHERE id IN ({qmarks})", id_list)
-    name_list = [row[0] for row in cursor.fetchall()]
+    raw_names = [row[0] for row in cursor.fetchall()]
+    # 去重且保持顺序
+    seen = set()
+    name_list = []
+    for name in raw_names:
+        if name not in seen:
+            seen.add(name)
+            name_list.append(name)
     conn.close()
     return name_list
 
