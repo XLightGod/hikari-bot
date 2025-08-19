@@ -2,6 +2,8 @@ import asyncio
 import aiohttp
 import json
 from nonebot import get_driver, logger
+from nonebot.adapters.onebot.v11 import Bot
+from hikari_bot.utils.constants import *
 
 _stop_event = asyncio.Event()
 
@@ -29,8 +31,4 @@ async def ws_runner():
 driver = get_driver()
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
-    global _ws_task
-    if _ws_task is None or _ws_task.done():
-        _stop_event.clear()
-        _ws_task = asyncio.create_task(ws_runner(bot))
-        await message_superusers(bot, "ws连接已启动。")
+    asyncio.create_task(ws_runner())
