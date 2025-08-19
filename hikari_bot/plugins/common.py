@@ -9,11 +9,14 @@ import base64
 import re
 import asyncio
 
+async def message_superusers(bot: Bot, message: str):
+    for uid in get_driver().config.superusers:
+        await bot.send_private_msg(user_id=int(uid), message=message)
+
 driver = get_driver()
 @driver.on_bot_connect
 async def _on_bot_connect(bot: Bot):
-    for uid in driver.config.superusers:
-        await bot.send_private_msg(user_id=int(uid), message="早上好！")
+    await message_superusers(bot, "早上好！")
 
 
 help_pic = os.path.join(RESOURCES_DIR, 'help.png')

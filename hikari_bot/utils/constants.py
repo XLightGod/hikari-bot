@@ -33,3 +33,6 @@ API_PLAYER_HISTORY_RANK = "arena/historyScore"
 YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
 MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
 CARD_PICS = os.path.join(DATA_DIR, 'pics')
+
+
+WS_URL = "ws://tiramisu.moecube.com:8923/"
