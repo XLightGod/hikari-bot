@@ -74,8 +74,7 @@ async def _on_bot_connect(bot: Bot):
             pass
         logger.info("[mycard] 已取消旧的 WS 任务")
     
-    _ws_task = asyncio.create_task(ws_runner())
-    asyncio.create_task(ws_runner(bot))
+    _ws_task = asyncio.create_task(ws_runner(bot))
     logger.info("[mycard] WS 监听任务已启动")
 
 
