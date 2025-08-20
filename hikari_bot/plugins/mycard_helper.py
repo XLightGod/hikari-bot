@@ -131,6 +131,11 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         id = html.unescape(raw_id)
         if not id:
             await mycard_bind.finish("请提供要订阅的用户名！")
+            return
+        record = await fetch_player_history(id, 1)
+        if not record or record == []:
+            await mycard_bind.finish("用户不存在！")
+            return
         if isinstance(event, GroupMessageEvent):
             usertype = "group"
             qq = str(event.group_id)
