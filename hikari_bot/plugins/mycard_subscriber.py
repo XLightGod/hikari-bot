@@ -16,7 +16,23 @@ async def process_mycard_event(bot: Bot, payload: dict):
     event = payload.get("event") or "?"
     data  = payload.get("data") or {}
 
-    if event == "create":
+    if event == "init":
+        for match in data:
+            users = match.get("users") or []
+            player_ids = [user.get("username") for user in users if user.get("username")]
+            if len(player_ids) != 2:
+                logger.warning(f"[mycard] 无法处理的对局数据：{match}")
+                continue
+
+            subscribe_list = get_subscribe_list()
+            for i in range(2):
+                player_id = player_ids[i]
+                if player_id in subscribe_list:
+                    room_id = match.get("id")
+                    watching_list.setdefault(room_id, []).append(player_id)
+                    logger.info(f"[mycard] 关注的玩家{player_id}已开始对局。")
+
+    elif event == "create":
         users = data.get("users") or []
         player_ids = [user.get("username") for user in users if user.get("username")]
         if len(player_ids) != 2:
@@ -30,7 +46,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
                 message = f"您关注的{player_id}已开始对局，对手id：{player_ids[1-i]}。"
                 room_id = data.get("id")
                 watching_list.setdefault(room_id, []).append(player_id)
-                logger.info(f"[mycard] 关注的对局已开始：{room_id}")
+                logger.info(f"[mycard] 关注的玩家{player_id}已结束对局。")
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
