@@ -125,7 +125,7 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
 
 mycard_subscribe = on_command("订阅", priority=5)
 @mycard_subscribe.handle()
-async def _(bot: Bot, event: MessageEvent, args: Message = EventMessage()):
+async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
     if str(msg).startswith("订阅 "):
         raw_id = str(msg)[len("订阅 "):].strip()
         id = html.unescape(raw_id)
@@ -142,7 +142,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = EventMessage()):
 
 mycard_unsubscribe = on_command("退订", priority=5)
 @mycard_unsubscribe.handle()
-async def _(bot: Bot, event: MessageEvent, args: Message = EventMessage()):
+async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
     if str(msg).startswith("退订 "):
         raw_id = str(msg)[len("退订 "):].strip()
         id = html.unescape(raw_id)
