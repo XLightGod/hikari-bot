@@ -48,7 +48,7 @@ async def process_mycard_event(bot: Bot, payload: dict):
             subscribe_list = get_subscribe_list()
             for player_id in player_ids:
                 history = await fetch_player_history(player_id, page_num=1)
-                rec = history["data"][0]
+                rec = history[0]
                 pt_delta = rec["pta"]-rec["pta_ex"] if rec["usernamea"] == player_id else rec["ptb"]-rec["ptb_ex"]
                 result = "胜利" if rec["winner"] == player_id else "失败"
 
