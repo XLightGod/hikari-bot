@@ -117,7 +117,7 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         raw_id = str(msg)[len("绑定 "):].strip()
         id = html.unescape(raw_id)
         if not id:
-            await mycard_bind.finish("请提供要绑定的用户名！")
+            await mycard_bind.finish("请提供要绑定的用户名！")  
         add_mycard_user(qq, id)
         await mycard_bind.finish("绑定成功！")
 
