@@ -109,7 +109,7 @@ def add_mycard_user(qq, id):
 
 
 
-def get_subscribe_list() - > dict:
+def get_subscribe_list():
     try:
         with open(mycard_subscribe_file, 'r', encoding='utf-8') as f:
             return json.load(f)
