@@ -77,12 +77,12 @@ async def ws_runner(bot: Bot):
                                 logger.info(f"[mycard raw] {msg.data}")
                                 await process_mycard_event(bot, data)
                             except Exception:
-                                logger.warning(f"[mycard raw] {msg.data}")
+                                logger.exception(f"[mycard raw] {msg.data}")
                         elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                             logger.warning("[mycard] 连接被关闭或出错，准备重连")
                             break
-        except Exception as e:
-            logger.error(f"[mycard] WS 出错：{e}")
+        except Exception:
+            logger.exception(f"[mycard] WS 出错")
         
         await asyncio.sleep(backoff)
         backoff = min(backoff * 2, max_backoff)
