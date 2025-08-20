@@ -155,9 +155,9 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
             await mycard_bind.finish("请提供要退订的用户名！")
         if isinstance(event, GroupMessageEvent):
             role = getattr(event.sender, "role", None)
-            if not role in ("owner", "admin"):
-                await mycard_unsubscribe.finish("只有群主或管理员可以退订！")
-                return
+            # if not role in ("owner", "admin"):
+            #     await mycard_unsubscribe.finish("只有群主或管理员可以退订！")
+            #     return
             usertype = "group"
             qq = str(event.group_id)
         else:
