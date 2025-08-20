@@ -1,12 +1,36 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import os
 import aiohttp
 import pytz
+import asyncio
+from nonebot import logger
 from hikari_bot.utils.constants import *
 
 mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
 mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')
+
+async def fetch_latest_record_with_retry(username: str,
+										 tries: int = 10,
+										 delay: float = 1,
+										 freshness_sec: int = 20):
+    for attempt in range(1, tries + 1):
+        try:
+			history = await fetch_player_history(username, page_num=1)
+			if history:
+				rec = history[0]
+				end_time_str = rec.get("end_time")
+				end_time = datetime.fromisoformat(end_time_str.replace("Z", "+00:00"))
+				now = datetime.now(timezone.utc)
+				delta_sec = (now - end_time).total_seconds()
+				if 0 <= delta_sec <= freshness_sec:
+					return rec
+        except Exception:
+            logger.exception(f"[mycard] 拉取 {username} 历史失败（第{attempt}次）")
+
+        await asyncio.sleep(delay)
+
+    return None
 
 async def fetch_player_history(username: str, page_num: int = 999999):
 	url = f"{MC_BASE_API}{API_PLAYER_HISTORY}"
@@ -22,10 +46,10 @@ async def fetch_player_history(username: str, page_num: int = 999999):
 					data = await response.json()
 					return data.get('data', [])
 				else:
-					print(f"Failed to fetch data: {response.status}")
+					logger.exception(f"Failed to fetch data: {response.status}")
 					return None
-		except Exception as e:
-			print(f"Exception occurred while fetching data: {e}")
+		except Exception:
+			logger.exception("Exception occurred while fetching data")
 			return None
 
 async def fetch_player_info(username: str):
@@ -39,11 +63,11 @@ async def fetch_player_info(username: str):
 				if response.status == 200:
 					data = await response.json()
 					return data
-				else:
-					print(f"Failed to fetch data: {response.status}")
+					logger.exception(f"Failed to fetch data: {response.status}")
 					return None
 		except Exception as e:
-			print(f"Exception occurred while fetching data: {e}")
+			logger.exception(f"Exception occurred while fetching data: {e}")
+			return None
 			return None
 		
 async def fetch_player_history_rank(username: str, year: int, month: int):
@@ -57,7 +81,7 @@ async def fetch_player_history_rank(username: str, year: int, month: int):
 			async with session.get(url, params=params) as response:
 				if response.status == 200:
 					data = await response.json()
-					return data["rank"]
+					return data.get("rank")
 				else:
 					print(f"Failed to fetch data: {response.status}")
 					return None
@@ -87,7 +111,7 @@ async def mycard_get_player_rank(player_id: str):
 	if info == None:
 		return None
 	
-	return info["arena_rank"]
+	return info.get("arena_rank")
 
 def get_mycard_user():
     try:
@@ -136,8 +160,8 @@ def unsubscribe(usertype, qq, id):
     if id in subscribe_list:
         if [usertype, qq] in subscribe_list[id]:
             subscribe_list[id].remove([usertype, qq])
-            if not subscribe_list[id]:  # 如果列表为空，删除该ID
-                del subscribe_list[id]
+			if not subscribe_list[id]:  # Remove the ID if the list is empty
+				del subscribe_list[id]
             save_subscribe_list(subscribe_list)
             return True
     return False

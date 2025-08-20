@@ -47,12 +47,13 @@ async def process_mycard_event(bot: Bot, payload: dict):
 
             subscribe_list = get_subscribe_list()
             for player_id in player_ids:
-                history = await fetch_player_history(player_id, page_num=1)
+                history = await fetch_latest_record_with_retry(player_id)
                 rec = history[0]
                 pt_delta = rec["pta"]-rec["pta_ex"] if rec["usernamea"] == player_id else rec["ptb"]-rec["ptb_ex"]
                 result = "胜利" if rec["winner"] == player_id else "失败"
 
-                message = f"您关注的{player_id}已结束对局，对局结果：{result}，pt变动：{pt_delta:.2f}。"
+                pt_str = f"+{pt_delta:.1f}" if pt_delta > 0 else f"{pt_delta:.1f}"
+                message = f"您关注的{player_id}已结束对局，对局结果：{result}，pt变动：{pt_str}。"
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
