@@ -10,6 +10,24 @@ from hikari_bot.utils.constants import *
 mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
 mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')
 
+async def is_first_win(username: str) -> bool:
+    url = f"{MC_BASE_API}{API_FIRST_WIN}"
+    param = {
+        "username": username
+    }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, params=param) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return data.get("today", "0") == "1"
+                else:
+                    logger.exception(f"Failed to fetch data: {response.status}")
+                    return False
+        except Exception:
+            logger.exception(f"Exception occurred while fetching data")
+            return False
+
 async def fetch_latest_record_with_retry(username: str,
                                          tries: int = 30,
                                          delay: float = 1,
@@ -64,11 +82,11 @@ async def fetch_player_info(username: str):
                 if response.status == 200:
                     data = await response.json()
                     return data
+                else:
                     logger.exception(f"Failed to fetch data: {response.status}")
                     return None
-        except Exception as e:
-            logger.exception(f"Exception occurred while fetching data: {e}")
-            return None
+        except Exception:
+            logger.exception(f"Exception occurred while fetching data")
             return None
         
 async def fetch_player_history_rank(username: str, year: int, month: int):
@@ -84,10 +102,10 @@ async def fetch_player_history_rank(username: str, year: int, month: int):
                     data = await response.json()
                     return data.get("rank")
                 else:
-                    print(f"Failed to fetch data: {response.status}")
+                    logger.exception(f"Failed to fetch data: {response.status}")
                     return None
-        except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
+        except Exception:
+            logger.exception(f"Exception occurred while fetching data")
             return None
 
 def is_specific_month(match, month: int, year: int):

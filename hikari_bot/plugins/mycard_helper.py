@@ -8,7 +8,7 @@ from matplotlib.ticker import MaxNLocator
 from nonebot import on_command, on_regex
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
-from nonebot.params import EventMessage
+from nonebot.params import EventMessage, CommandArg
 from hikari_bot.utils.mycard import *
 
 #mycard_regex = r"^(?:(\d{2,4})年)?(1[0-2]|[1-9])月历史\s+(.+)$"
@@ -165,3 +165,19 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
             qq = str(event.user_id)
         unsubscribe(usertype, qq, id)
         await mycard_unsubscribe.finish("退订成功！")
+
+mycard_firstwin = on_command("首胜查询", priority=5)
+@mycard_firstwin.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if input:=args.extract_plain_text().strip():
+        user_id = html.unescape(input)
+    else:
+        user_id = get_mycard_user()[str(event.user_id)]
+    if not user_id:
+        await mycard_query.finish("请先绑定或提供用户名！")
+
+    is_first_win = await is_first_win(id)
+    if is_first_win:
+        await mycard_firstwin.finish("您已完成今日首胜！")
+    else:
+        await mycard_firstwin.finish("您还未完成今日首胜！")

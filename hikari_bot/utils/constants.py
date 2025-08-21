@@ -25,10 +25,12 @@ API_CHECK_IN = "contestants/verify?token="
 API_QUIT = "contestants/quit?token="
 API_PAIRING = "battles/all?tournament_id={id}&round={round}&token="
 TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjc4MDI2NSwiaXNzIjoiaHR0cDovL2FwaS5qaWh1YW5zaGUuY29tL2FwaS93ZWNoYXQvbG9naW4iLCJpYXQiOjE3NTA2NjQwODIsImV4cCI6MTc1NTg0ODA4MiwibmJmIjoxNzUwNjY0MDgyLCJqdGkiOiIzVXVzaERKTWw2clhaT1RwIn0.IX0E-qKOqKF2l9Me7NT6VomTR66erms1651qW7KC-xQ"
+
 MC_BASE_API = "https://sapi.moecube.com:444/ygopro/"
 API_PLAYER_HISTORY = "arena/history"
 API_PLAYER_INFO = "arena/user"
 API_PLAYER_HISTORY_RANK = "arena/historyScore"
+API_FIRST_WIN = "arena/firstwin"
 
 YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
 MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
