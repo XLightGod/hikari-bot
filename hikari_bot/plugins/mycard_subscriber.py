@@ -5,12 +5,13 @@ from nonebot import get_driver, logger
 from nonebot.adapters.onebot.v11 import Bot
 from hikari_bot.utils.constants import *
 from hikari_bot.utils.mycard import *
+from hikari_bot.plugins.common import *
 
 _stop_event = asyncio.Event()
 
 _ws_task: asyncio.Task | None = None
 
-watching_list = {}
+room_list = {}
 
 async def process_mycard_event(bot: Bot, payload: dict):
     event = payload.get("event") or "?"
@@ -23,14 +24,11 @@ async def process_mycard_event(bot: Bot, payload: dict):
             if len(player_ids) != 2:
                 logger.warning(f"[mycard] 无法处理的对局数据：{match}")
                 continue
-
-            subscribe_list = get_subscribe_list()
+            room_id = match.get("id")
             for i in range(2):
                 player_id = player_ids[i]
-                if player_id in subscribe_list and not await is_first_win(player_id):
-                    room_id = match.get("id")
-                    watching_list.setdefault(room_id, []).append(player_id)
-                    logger.info(f"[mycard] 关注的玩家{player_id}已开始对局。")
+                if player_id not in room_list.setdefault(room_id, []):
+                    room_list[room_id].append(player_id)
 
     elif event == "create":
         users = data.get("users") or []
@@ -39,14 +37,14 @@ async def process_mycard_event(bot: Bot, payload: dict):
             logger.warning(f"[mycard] 无法处理的对局数据：{data}")
             return
         
+        room_id = data.get("id")
         subscribe_list = get_subscribe_list()
         for i in range(2):
             player_id = player_ids[i]
+            room_list.setdefault(room_id, []).append(player_id)
+
             if player_id in subscribe_list and not await is_first_win(player_id):
                 message = f"您关注的{player_id}已开始挑战首赢，对手id：{player_ids[1-i]}。"
-                room_id = data.get("id")
-                watching_list.setdefault(room_id, []).append(player_id)
-                logger.info(f"[mycard] 关注的玩家{player_id}已开始对局。")
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
@@ -56,13 +54,18 @@ async def process_mycard_event(bot: Bot, payload: dict):
     
     elif event == "delete":
         room_id = data
-        if room_id in watching_list:
-            logger.info(f"[mycard] 关注的对局已结束：{room_id}")
-            player_ids = watching_list[room_id]
-            del watching_list[room_id]
+        if room_id not in room_list:
+            await message_superusers(bot, f"房间不在列表中：{room_id}")
+            return
+        
+        player_ids = room_list[room_id]
+        del room_list[room_id]
 
-            subscribe_list = get_subscribe_list()
-            for player_id in player_ids:
+        await message_superusers(bot, f"对局已完成：{player_ids[0]} vs {player_ids[1]}")
+
+        subscribe_list = get_subscribe_list()
+        for player_id in player_ids:
+            if player_id in subscribe_list and not await is_first_win(player_id):
                 rec = await fetch_latest_record(player_id)
                 if rec is None:
                     await message_superusers(bot, f"获取最新记录失败，username={player_id}")
@@ -73,14 +76,15 @@ async def process_mycard_event(bot: Bot, payload: dict):
                 pt_str = f"+{pt_delta:.1f}" if pt_delta > 0 else f"{pt_delta:.1f}"
                 if rec["winner"] == player_id:
                     message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_str}。"
-                else:
-                    message = f"您关注的{player_id}挑战首赢失败。pt变动：{pt_str}。"
+                # else:
+                #     message = f"您关注的{player_id}挑战首赢失败。pt变动：{pt_str}。"
                 for subscriber in subscribe_list.get(player_id, []):
                     usertype, qq = subscriber
                     if usertype == "group":
                         await bot.send_group_msg(group_id=int(qq), message=message)
                     else:
                         await bot.send_private_msg(user_id=int(qq), message=message)
+            
 
 async def ws_runner(bot: Bot):
     backoff = 1
