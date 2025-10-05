@@ -38,21 +38,21 @@ async def handle_create_event(bot: Bot, player_ids: list):
                 message = f"您关注的{player_id}已开始挑战首赢，对手id：{player_ids[1-i]}。"
                 asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
     except Exception as e:
-        asyncio.create_task(message_superusers(bot, f"处理create事件出错: {e}"))
+        await message_superusers(bot, f"处理create事件出错: {e}")
 
 
 async def handle_delete_event(bot: Bot, room_id):
     try:
         subscribe_list = get_subscribe_list()
         if room_id not in room_list:
-            asyncio.create_task(message_superusers(bot, f"房间不在列表中：{room_id}"))
+            await message_superusers(bot, f"房间不在列表中：{room_id}")
             return
         
         player_ids = room_list[room_id]
         del room_list[room_id]
 
         if len(player_ids) != 2:
-            asyncio.create_task(message_superusers(bot, f"房间玩家数异常：{room_id}，{player_ids}"))
+            await message_superusers(bot, f"房间玩家数异常：{room_id}，{player_ids}")
             return
         
         rec = await fetch_latest_record(player_ids[0])
@@ -65,7 +65,7 @@ async def handle_delete_event(bot: Bot, room_id):
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
-        asyncio.create_task(message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})"))
+        await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
 
         if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
@@ -75,7 +75,7 @@ async def handle_delete_event(bot: Bot, room_id):
                         asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
         
     except Exception as e:
-        asyncio.create_task(message_superusers(bot, f"处理delete事件出错: {e}"))
+        await message_superusers(bot, f"处理delete事件出错: {e}")
 
 
 async def process_mycard_event(bot: Bot, payload: dict):
