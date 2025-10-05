@@ -12,13 +12,10 @@ _stop_event = asyncio.Event()
 _ws_task: asyncio.Task | None = None
 
 room_list = {}
-watching_list = []
 
-async def _room_add_players(room_id, player_ids):
+def _room_add_players(room_id, player_ids):
     for i in range(2):
-        player_info = await fetch_player_info(player_ids[i])
-        player_info["username"] = player_ids[i]
-        room_list.setdefault(room_id, []).append(player_info)
+        room_list.setdefault(room_id, []).append(player_ids[i])
 
 
 async def _send_notifications(bot: Bot, subscribers: list, message: str):
@@ -36,10 +33,8 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str):
 async def handle_create_event(bot: Bot, player_ids: list):
     try:
         subscribe_list = get_subscribe_list()
-        for i in range(2):
-            player_id = player_ids[i]
+        for i, player_id in enumerate(player_ids):
             if player_id in subscribe_list and not await is_first_win(player_id):
-                watching_list.append(player_id)
                 message = f"您关注的{player_id}已开始挑战首赢，对手id：{player_ids[1-i]}。"
                 asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
     except Exception as e:
@@ -61,18 +56,23 @@ async def handle_delete_event(bot: Bot, room_id):
             asyncio.create_task(message_superusers(bot, f"房间玩家数异常：{room_id}，{player_ids}"))
             return
         
-        player_infos_now = [await fetch_player_info(player_id) for player_id in player_ids]
-        pt_deltas = [info["pt"] - player_infos[i]["pt"] for i, info in enumerate(player_infos_now) if info and info.get("pt") is not None]
+        rec = await fetch_latest_record(player_ids[0])
+        if rec is None or rec["usernameb"] != player_ids[1]:
+            await message_superusers(bot, f"获取最新记录失败")
+            return
+
+        pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
         asyncio.create_task(message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})"))
 
-        for i, player_id in enumerate(player_ids):
-            if player_id in watching_list:
-                watching_list.remove(player_id)
-                if pt_deltas[i] > 0:
-                    message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
-                    asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
+        if rec["is_first_win"]:
+            for i, player_id in enumerate(player_ids):
+                if player_id in watching_list:
+                    if pt_deltas[i] > 0:
+                        message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
+                        asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message))
+        
     except Exception as e:
         asyncio.create_task(message_superusers(bot, f"处理delete事件出错: {e}"))
 
@@ -87,14 +87,14 @@ async def process_mycard_event(bot: Bot, payload: dict):
             player_ids = [user.get("username") for user in users if user.get("username")]
             room_id = match.get("id")
             if len(player_ids) == 2:
-                asyncio.create_task(_room_add_players(room_id, player_ids))
+                room_list.setdefault(room_id, []).extend(player_ids)
 
     elif event == "create":
         users = data.get("users") or []
         player_ids = [user.get("username") for user in users if user.get("username")]
         room_id = data.get("id")
         if len(player_ids) == 2:
-            await _room_add_players(room_id, player_ids)
+            room_list.setdefault(room_id, []).extend(player_ids)
             await handle_create_event(bot, player_ids)
 
     elif event == "delete":
