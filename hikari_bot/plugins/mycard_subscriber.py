@@ -48,10 +48,9 @@ async def handle_delete_event(bot: Bot, room_id):
             asyncio.create_task(message_superusers(bot, f"房间不在列表中：{room_id}"))
             return
         
-        player_infos = room_list[room_id]
+        player_ids = room_list[room_id]
         del room_list[room_id]
 
-        player_ids = [info["username"] for info in player_infos]
         if len(player_ids) != 2:
             asyncio.create_task(message_superusers(bot, f"房间玩家数异常：{room_id}，{player_ids}"))
             return
