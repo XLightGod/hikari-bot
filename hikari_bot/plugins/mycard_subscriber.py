@@ -90,11 +90,11 @@ async def process_mycard_event(bot: Bot, payload: dict):
         room_id = data.get("id")
         if len(player_ids) == 2:
             await _room_add_players(room_id, player_ids)
-            await _handle_create_event(bot, player_ids)
+            await handle_create_event(bot, player_ids)
 
     elif event == "delete":
         room_id = data
-        await _handle_delete_event(bot, room_id)
+        await handle_delete_event(bot, room_id)
 
 
 async def ws_runner(bot: Bot):
