@@ -26,6 +26,9 @@ async def process_mycard_event(bot: Bot, payload: dict):
     data  = payload.get("data") or {}
     subscribe_list = get_subscribe_list()
 
+    
+    await message_superusers(bot, f"ws收到事件，类型：{event}")
+
     if event == "init":
         for match in data:
             users = match.get("users") or []
