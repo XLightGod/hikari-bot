@@ -65,7 +65,7 @@ async def handle_delete_event(bot: Bot, room_id):
 
         asyncio.create_task(message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})"))
 
-        if rec["is_first_win"]:
+        if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
                 if player_id in watching_list:
                     if pt_deltas[i] > 0:
