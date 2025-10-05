@@ -17,6 +17,7 @@ watching_list = []
 async def _room_add_players(room_id, player_ids):
     for i in range(2):
         player_info = await fetch_player_info(player_ids[i])
+        player_info["username"] = player_ids[i]
         room_list.setdefault(room_id, []).append(player_info)
 
 
