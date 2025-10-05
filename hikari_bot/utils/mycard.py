@@ -28,14 +28,6 @@ async def is_first_win(username: str) -> bool:
             logger.exception(f"Exception occurred while fetching data")
             return False
 
-async def fetch_latest_record(username: str, delay: float = 10):
-    asyncio.sleep(delay)
-    history = await fetch_player_history(username, page_num=1)
-    if history:
-        return history[0]
-    else:
-        return None
-
 async def fetch_player_history(username: str, page_num: int = 999999):
     url = f"{MC_BASE_API}{API_PLAYER_HISTORY}"
     params = {
