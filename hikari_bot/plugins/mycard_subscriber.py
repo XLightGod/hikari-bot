@@ -80,7 +80,7 @@ async def handle_delete_event(bot: Bot, room_id):
             logger.info(f"[mycard] 未找到匹配记录，5秒后重试... ({player_ids[0]} vs {player_ids[1]})")
             await asyncio.sleep(retry_interval)
         
-         if rec is None:
+        if rec is None:
             await message_superusers(bot, f"获取最新记录失败，已重试3分钟：{player_ids[0]} vs {player_ids[1]}")
             return
 
