@@ -9,7 +9,7 @@ from nonebot.matcher import Matcher
 import base64
 import re
 import asyncio
-from jmcomic import download_album
+from jmcomic import download_album, create_option_by_file
 
 async def message_superusers(bot: Bot, message: str):
     for uid in get_driver().config.superusers:
