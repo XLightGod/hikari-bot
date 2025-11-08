@@ -4,10 +4,12 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from hikari_bot.utils.whitelist import *
+from hikari_bot.utils.constants import *
 from nonebot.matcher import Matcher
 import base64
 import re
 import asyncio
+from jmcomic import download_album
 
 async def message_superusers(bot: Bot, message: str):
     for uid in get_driver().config.superusers:
@@ -161,3 +163,25 @@ async def _(bot: Bot, event: GroupMessageEvent):
     MAX_LINES = 100
     output = "\n".join(result[:MAX_LINES])
     await srdslist.finish(output)
+
+
+async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
+    loop = asyncio.get_running_loop()
+    option_path = os.path.join(RESOURCES_DIR, "option.yml")
+    try:
+        await loop.run_in_executor(None, download_album, comic_id, option_path)
+        await bot.send(event=event, message=f"✅ 下载完成：{comic_id}")
+    except Exception as e:
+        await bot.send(event=event, message=f"❌ 下载失败：{comic_id}\n{type(e).__name__}: {e}")
+
+
+jmcomic_download = on_command('jm', priority=5)
+
+@jmcomic_download.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    comic_id = args.extract_plain_text().strip()
+    if not comic_id.isdigit():
+        return
+    comic_id = int(comic_id)
+    await jmcomic_download.send(f"开始下载jm{comic_id}")
+    asyncio.create_task(_jm_download(bot, event, comic_id))

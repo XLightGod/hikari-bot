@@ -36,5 +36,4 @@ YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
 MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
 CARD_PICS = os.path.join(DATA_DIR, 'pics')
 
-
 WS_URL = "wss://tiramisu.moecube.com:8923/?filter=started"
