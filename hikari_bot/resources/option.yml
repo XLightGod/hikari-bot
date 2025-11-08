@@ -19,7 +19,7 @@ download:
     decode: true
     suffix: null
   threading:
-    image: 30
+    image: 10
     photo: 2
 log: true
 plugins:
