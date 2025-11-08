@@ -170,9 +170,9 @@ async def _(bot: Bot, event: GroupMessageEvent):
 
 async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
     loop = asyncio.get_running_loop()
-    option_path = os.path.join(RESOURCES_DIR, "option.yml")
+    option = create_option_by_file(os.path.join(RESOURCES_DIR, "option.yml"))
     try:
-        await loop.run_in_executor(None, download_album, comic_id, option_path)
+        await loop.run_in_executor(None, download_album, comic_id, option)
         await bot.send(event=event, message=f"✅ 下载完成：{comic_id}")
     except Exception as e:
         await bot.send(event=event, message=f"❌ 下载失败：{comic_id}\n{type(e).__name__}: {e}")
