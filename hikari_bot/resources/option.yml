@@ -20,7 +20,7 @@ download:
     suffix: null
   threading:
     image: 30
-    photo: 16
+    photo: 2
 log: true
 plugins:
   before_photo:
