@@ -89,7 +89,10 @@ broadcast = on_command('广播', permission=SUPERUSER)
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     message = args.extract_plain_text()
     for group in get_whitelist()["groups"]:
-        await bot.send_group_msg(group_id=group, message=message)
+        try:
+            await bot.send_group_msg(group_id=group, message=message)
+        except Exception as e:
+            print(f"向群{group}发送消息失败: {e}")
 
 
 spy_check = on_command('卧底检测', permission=SUPERUSER)

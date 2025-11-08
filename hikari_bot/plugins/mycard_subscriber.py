@@ -13,6 +13,94 @@ _ws_task: asyncio.Task | None = None
 
 room_list = {}
 
+async def _send_notifications(bot: Bot, subscribers: list, message: str, message_type: str):
+    for subscriber in subscribers:
+        try:
+            usertype, qq = subscriber
+            if message_type != "both" and usertype != message_type:
+                continue
+            if usertype == "group":
+                await bot.send_group_msg(group_id=int(qq), message=message)
+            else:
+                await bot.send_private_msg(user_id=int(qq), message=message)
+        except Exception as e:
+            await message_superusers(bot, f"发送通知失败: {e}")
+
+
+async def handle_create_event(bot: Bot, player_ids: list):
+    try:
+        subscribe_list = get_subscribe_list()
+        for i, player_id in enumerate(player_ids):
+            if player_id in subscribe_list:
+                message = f"您关注的{player_id}已开始对局，对手id：{player_ids[1-i]}。"
+                asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message, "private"))
+        if player_id[0] in subscribe_list and player_id[1] in subscribe_list:
+            subscribers_0 = set(subscribe_list.get(player_ids[0], []))
+            subscribers_1 = set(subscribe_list.get(player_ids[1], []))
+            common_subscribers = subscribers_0 & subscribers_1
+            message = f"您关注的{player_ids[0]}和{player_ids[1]}已开始对局。"
+            asyncio.create_task(_send_notifications(bot, list(common_subscribers), message, "group"))
+        
+    except Exception as e:
+        await message_superusers(bot, f"处理create事件出错: {e}")
+
+
+async def handle_delete_event(bot: Bot, room_id):
+    try:
+        subscribe_list = get_subscribe_list()
+        if room_id not in room_list:
+            await message_superusers(bot, f"房间不在列表中：{room_id}")
+            return
+        
+        player_ids = room_list[room_id]
+        del room_list[room_id]
+
+        if len(player_ids) != 2:
+            await message_superusers(bot, f"房间玩家数异常：{room_id}，{player_ids}")
+            return
+        
+        rec = None
+        start_time = asyncio.get_event_loop().time()
+        timeout = 180  # 3分钟 = 180秒
+        retry_interval = 5  # 5秒
+        
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            rec = await fetch_latest_record(player_ids[0])
+            if rec and rec.get("usernameb") == player_ids[1]:
+                break
+            
+            # 某些情况下，两个玩家的顺序会被交换
+            player_ids[0], player_ids[1] = player_ids[1], player_ids[0]
+            rec = await fetch_latest_record(player_ids[0])
+            if rec and rec.get("usernameb") == player_ids[1]:
+                break
+            player_ids[0], player_ids[1] = player_ids[1], player_ids[0]
+
+            # 都没有找到匹配的记录，等待5秒后重试
+            rec = None
+            logger.info(f"[mycard] 未找到匹配记录，5秒后重试... ({player_ids[0]} vs {player_ids[1]})")
+            await asyncio.sleep(retry_interval)
+        
+        if rec is None:
+            await message_superusers(bot, f"获取最新记录失败，已重试3分钟：{player_ids[0]} vs {player_ids[1]}")
+            return
+
+        pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
+        pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
+
+        await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
+
+        if rec["isfirstwin"]:
+            for i, player_id in enumerate(player_ids):
+                if player_id in subscribe_list:
+                    if pt_deltas[i] > 0:
+                        message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_strs[i]}。"
+                        asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message, "both"))
+        
+    except Exception as e:
+        await message_superusers(bot, f"处理delete事件出错: {e}")
+
+
 async def process_mycard_event(bot: Bot, payload: dict):
     event = payload.get("event") or "?"
     data  = payload.get("data") or {}
@@ -21,70 +109,22 @@ async def process_mycard_event(bot: Bot, payload: dict):
         for match in data:
             users = match.get("users") or []
             player_ids = [user.get("username") for user in users if user.get("username")]
-            if len(player_ids) != 2:
-                logger.warning(f"[mycard] 无法处理的对局数据：{match}")
-                continue
             room_id = match.get("id")
-            for i in range(2):
-                player_id = player_ids[i]
-                if player_id not in room_list.setdefault(room_id, []):
-                    room_list[room_id].append(player_id)
+            if len(player_ids) == 2:
+                room_list[room_id] = player_ids
 
     elif event == "create":
         users = data.get("users") or []
         player_ids = [user.get("username") for user in users if user.get("username")]
-        if len(player_ids) != 2:
-            logger.warning(f"[mycard] 无法处理的对局数据：{data}")
-            return
-        
         room_id = data.get("id")
-        subscribe_list = get_subscribe_list()
-        for i in range(2):
-            player_id = player_ids[i]
-            room_list.setdefault(room_id, []).append(player_id)
+        if len(player_ids) == 2:
+            room_list[room_id] = player_ids
+            await handle_create_event(bot, player_ids)
 
-            if player_id in subscribe_list and not await is_first_win(player_id):
-                message = f"您关注的{player_id}已开始挑战首赢，对手id：{player_ids[1-i]}。"
-                for subscriber in subscribe_list.get(player_id, []):
-                    usertype, qq = subscriber
-                    if usertype == "group":
-                        await bot.send_group_msg(group_id=int(qq), message=message)
-                    else:
-                        await bot.send_private_msg(user_id=int(qq), message=message)
-    
     elif event == "delete":
         room_id = data
-        if room_id not in room_list:
-            await message_superusers(bot, f"房间不在列表中：{room_id}")
-            return
-        
-        player_ids = room_list[room_id]
-        del room_list[room_id]
+        asyncio.create_task(handle_delete_event(bot, room_id))
 
-        await message_superusers(bot, f"对局已完成：{player_ids[0]} vs {player_ids[1]}")
-
-        subscribe_list = get_subscribe_list()
-        for player_id in player_ids:
-            if player_id in subscribe_list and not await is_first_win(player_id):
-                rec = await fetch_latest_record(player_id)
-                if rec is None:
-                    await message_superusers(bot, f"获取最新记录失败，username={player_id}")
-                    continue
-
-                pt_delta = rec["pta"]-rec["pta_ex"] if rec["usernamea"] == player_id else rec["ptb"]-rec["ptb_ex"]
-
-                pt_str = f"+{pt_delta:.1f}" if pt_delta > 0 else f"{pt_delta:.1f}"
-                if rec["winner"] == player_id:
-                    message = f"您关注的{player_id}成功拿下首赢！pt变动：{pt_str}。"
-                # else:
-                #     message = f"您关注的{player_id}挑战首赢失败。pt变动：{pt_str}。"
-                for subscriber in subscribe_list.get(player_id, []):
-                    usertype, qq = subscriber
-                    if usertype == "group":
-                        await bot.send_group_msg(group_id=int(qq), message=message)
-                    else:
-                        await bot.send_private_msg(user_id=int(qq), message=message)
-            
 
 async def ws_runner(bot: Bot):
     backoff = 1
