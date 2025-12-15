@@ -160,9 +160,15 @@ async def handle_group_request(bot: Bot, event: GroupRequestEvent):
                 sub_type=event.sub_type,
                 approve=True
             )
-            await message_superusers(bot, f"已自动通过群邀请，来自用户：{event.user_id}，群号：{event.group_id}")
     except Exception as e:
         print(f"处理群邀请失败：{e}")
+
+group_increase = on_notice(priority=1)
+
+@group_increase.handle()
+async def _(bot: Bot, event: GroupIncreaseNoticeEvent):
+    if str(event.user_id) == str(bot.self_id):
+        await message_superusers(bot, f"已加入群：{event.group_id}")
 
 
 srdslist = on_command('队员列表', permission=SUPERUSER)
