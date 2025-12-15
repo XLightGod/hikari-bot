@@ -137,16 +137,46 @@ async def _(bot: Bot, event: MessageEvent):
     await spy_check.finish(result)
 
 
-friend_request_handler = on_request(priority=1)
+request_handler = on_request(priority=1)
 
-@friend_request_handler.handle()
-async def handle_friend_request(bot: Bot, event: FriendRequestEvent):
+@request_handler.handle()
+async def _(bot: Bot, event: FriendRequestEvent):
     try:
         # 自动通过好友请求
         await bot.call_api("set_friend_add_request", flag=event.flag, approve=True)
         print(f"已自动通过好友申请，来自用户：{event.user_id}")
     except Exception as e:
         print(f"处理好友申请失败：{e}")
+
+@request_handler.handle()
+async def request_handler(bot: Bot, event: GroupRequestEvent):
+    try:
+        if event.sub_type == "invite":
+            await bot.call_api(
+                "set_group_add_request",
+                flag=event.flag,
+                sub_type=event.sub_type,
+                approve=True
+            )
+            await message_superusers(bot, f"已自动通过群邀请，来自用户：{event.user_id}，群号：{event.group_id}")
+    except Exception as e:
+        print(f"处理群邀请失败：{e}")
+
+
+
+async def _invited(bot: Bot, event: Event, state: dict)->bool:
+    if event.notice_type=='group_increase' and event.sub_type=='invite':
+        return True
+    else:
+        return False
+
+
+invited = on_notice(_invited)
+
+@invited.handle()
+async def _(bot: Bot, event: Event):
+    if str(event.user_id) == str(bot.self_id):
+        await message_superusers(bot, f"已被用户 {event.operator_id} 拉入群：{event.group_id}")
 
 
 srdslist = on_command('队员列表', permission=SUPERUSER)
