@@ -148,21 +148,6 @@ async def handle_friend_request(bot: Bot, event: FriendRequestEvent):
     except Exception as e:
         print(f"处理好友申请失败：{e}")
 
-group_request_handler = on_request(priority=1)
-
-@group_request_handler.handle()
-async def handle_group_request(bot: Bot, event: GroupRequestEvent):
-    try:
-        if event.sub_type == "invite":
-            await bot.call_api(
-                "set_group_add_request",
-                flag=event.flag,
-                sub_type=event.sub_type,
-                approve=True
-            )
-    except Exception as e:
-        print(f"处理群邀请失败：{e}")
-
 group_increase = on_notice(priority=1)
 
 @group_increase.handle()
