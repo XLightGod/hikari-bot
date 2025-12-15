@@ -60,7 +60,7 @@ async def _(bot: Bot, event: MessageEvent):
     except Exception as e:
         await reload.finish(f"重载插件失败：{e}")
 
-whitelist = on_command("添加至白名单", alias={"白"}, permission=SUPERUSER)
+whitelist = on_command("添加至白名单", alias={"白名单"}, permission=SUPERUSER)
 
 @whitelist.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
