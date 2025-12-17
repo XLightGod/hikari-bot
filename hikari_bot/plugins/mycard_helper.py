@@ -5,6 +5,7 @@ from io import BytesIO
 import re
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import pytz
 from nonebot import on_command, on_regex
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
@@ -18,6 +19,7 @@ mycard_subscribe = on_command("订阅", priority=5)
 mycard_unsubscribe = on_command("退订", priority=5)
 mycard_firstwin = on_command("首胜查询", aliases={"首赢查询"}, priority=5)
 mycard_whois = on_command("查询绑定", aliases={"绑定查询"}, priority=5)
+mycard_winrate = on_command("胜率查询", aliases={"胜率统计"}, priority=5)
 mycard_addtag = on_command("添加标签", priority=5)
 mycard_deltag = on_command("删除标签", priority=5)
 mycard_taglist = on_command("查看标签", priority=5)
@@ -243,3 +245,103 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message
             await mycard_whois.finish(f"你绑定的 MyCard 用户名为：{user_id}")
         else:
             await mycard_whois.finish(f"你还未绑定 MyCard 用户名！")
+
+
+@mycard_winrate.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if input:=args.extract_plain_text().strip():
+        user_id = html.unescape(input)
+    else:
+        user_id = get_mycard_user().get(str(event.user_id))
+    if not user_id:
+        await mycard_winrate.finish("请先绑定或提供用户名！")
+
+    records = await fetch_player_history(user_id)
+    if records == None:
+        await mycard_winrate.finish(f"查询失败，请稍后重试")
+
+    if len(records) == 0:
+        await mycard_winrate.finish(f"玩家 {user_id} 暂无对战记录")
+
+    # 按月份分组记录
+    monthly_data = {}
+    for record in records:
+        start_time_utc = datetime.strptime(record["start_time"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        utc_zone = pytz.utc
+        start_time_utc = utc_zone.localize(start_time_utc)
+        start_time_bj = start_time_utc.astimezone(pytz.timezone("Asia/Shanghai"))
+        
+        month_key = f"{start_time_bj.year}-{start_time_bj.month:02d}"
+        if month_key not in monthly_data:
+            monthly_data[month_key] = {'total': 0, 'wins': 0}
+        
+        monthly_data[month_key]['total'] += 1
+        if record['winner'] == user_id:
+            monthly_data[month_key]['wins'] += 1
+
+    # 排序月份并计算胜率
+    sorted_months = sorted(monthly_data.keys())
+    win_rates = []
+    month_labels = []
+    
+    for month_key in sorted_months:
+        total_games = monthly_data[month_key]['total']
+        wins = monthly_data[month_key]['wins']
+        win_rate = (wins * 100.0 / total_games) if total_games > 0 else 0.0
+        
+        win_rates.append(win_rate)
+        # 格式化月份标签
+        year, month = month_key.split('-')
+        month_labels.append(f"{year[-2:]}年{int(month)}月")
+
+    total_wins = sum([record for record in records if record['winner'] == user_id])
+    total_games = len(records)
+    overall_rate = (len([record for record in records if record['winner'] == user_id]) * 100.0 / total_games) if total_games > 0 else 0.0
+
+    result_message = f"""玩家：{user_id}
+总场次：{total_games}
+总胜率：{overall_rate:.2f}%
+有对局的月份：{len(sorted_months)}个"""
+
+    # 生成胜率曲线图
+    if len(win_rates) > 0:
+        plt.figure(figsize=(12, 6))
+        
+        # 绘制胜率曲线
+        plt.plot(range(len(win_rates)), win_rates, marker='o', linestyle='-', color='b', linewidth=2, markersize=6)
+        
+        # 设置图表
+        plt.ylim(0, 100)  # 胜率范围0-100%
+        plt.ylabel("胜率 (%)", fontsize=12)
+        plt.xlabel("月份", fontsize=12)
+        plt.title(f"{user_id} 月度胜率统计", fontsize=14, fontweight='bold')
+        plt.grid(True, alpha=0.3)
+        
+        # 设置x轴标签
+        plt.xticks(range(len(month_labels)), month_labels, rotation=45, ha='right')
+        
+        # 在数据点上显示胜率值
+        for i, rate in enumerate(win_rates):
+            plt.text(i, rate + 2, f"{rate:.1f}%", ha='center', va='bottom', fontsize=9)
+        
+        # 添加平均线
+        avg_rate = sum(win_rates) / len(win_rates)
+        plt.axhline(y=avg_rate, color='r', linestyle='--', alpha=0.7, label=f'平均胜率: {avg_rate:.1f}%')
+        plt.legend()
+        
+        plt.tight_layout()
+
+        # 保存图表到内存中的二进制流
+        buf = BytesIO()
+        plt.savefig(buf, format="png", bbox_inches='tight', dpi=150)
+        buf.seek(0)  # 将文件指针移到开始位置
+        plt.close()
+
+        image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+        await mycard_winrate.finish(Message([
+            MessageSegment("text", {"text": result_message}), 
+            MessageSegment("image", {"file": f"base64://{image_base64}"})
+        ]))
+    
+    await mycard_winrate.finish(result_message)
