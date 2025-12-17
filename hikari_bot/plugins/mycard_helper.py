@@ -292,7 +292,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         win_rates.append(win_rate)
         # 格式化月份标签
         year, month = month_key.split('-')
-        month_labels.append(f"{year[-2:]}年{int(month)}月")
+        month_labels.append(f"{year[-2:]}/{int(month)}")
 
     total_wins = len([record for record in records if record['winner'] == user_id])
     total_games = len(records)
@@ -312,9 +312,9 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         
         # 设置图表
         plt.ylim(0, 100)  # 胜率范围0-100%
-        plt.ylabel("胜率 (%)", fontsize=12)
-        plt.xlabel("月份", fontsize=12)
-        plt.title(f"{user_id} 月度胜率统计", fontsize=14, fontweight='bold')
+        #plt.ylabel("胜率 (%)", fontsize=12)
+        #plt.xlabel("月份", fontsize=12)
+        #plt.title(f"{user_id} 月度胜率统计", fontsize=14, fontweight='bold')
         plt.grid(True, alpha=0.3)
         
         # 设置x轴标签
@@ -326,7 +326,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         
         # 添加平均线
         avg_rate = sum(win_rates) / len(win_rates)
-        plt.axhline(y=avg_rate, color='r', linestyle='--', alpha=0.7, label=f'平均胜率: {avg_rate:.1f}%')
+        plt.axhline(y=avg_rate, color='r', linestyle='--', alpha=0.7, label=f'avg: {avg_rate:.1f}%')
         plt.legend()
         
         plt.tight_layout()
