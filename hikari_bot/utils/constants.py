@@ -11,7 +11,6 @@ IMAGE_ORIGIN = "https://images.ygoprodeck.com/images/cards_cropped/"
 IMAGE_CHINESE = "https://cdn.233.momobako.com/ygopro/pics/"
 CARD_SEARCH = "https://ygocdb.com/api/v0/?search="
 FAQ = "https://ygocdb.com/faq/"
-YGOPRO = "C:/Users/xu_yi/AppData/Roaming/MyCardLibrary/ygopro"
 
 WINDOENT_BASE_API = "https://yugiohmatchapi.windoent.com/"
 API_MATCH_SEARCH = "v1/match"
@@ -31,11 +30,5 @@ API_PLAYER_HISTORY = "arena/history"
 API_PLAYER_INFO = "arena/user"
 API_PLAYER_HISTORY_RANK = "arena/historyScore"
 API_FIRST_WIN = "arena/firstwin"
-
-YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
-MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
-CARD_PICS = os.path.join(DATA_DIR, 'pics')
-
-JM_DIR = os.path.join(DATA_DIR, "jm")
 
 WS_URL = "wss://tiramisu.moecube.com:8923/?filter=started"

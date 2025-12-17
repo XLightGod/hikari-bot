@@ -13,6 +13,14 @@ from hikari_bot.utils.mycard import *
 
 mycard_regex = r"^(?:(\d{2,4})年)?(?:(1[0-2]|[1-9])月)?历史(?:\s+(.+))?$"
 mycard_query = on_regex(r".*历史.*", priority=5)
+mycard_bind = on_command("绑定", priority=5)
+mycard_subscribe = on_command("订阅", priority=5)
+mycard_unsubscribe = on_command("退订", priority=5)
+mycard_firstwin = on_command("首胜查询",aliases={"首赢查询"}, priority=5)
+mycard_whois = on_command("查询绑定", priority=5)
+mycard_addtag = on_command("添加标签", priority=5)
+mycard_deltag = on_command("删除标签", priority=5)
+mycard_taglist = on_command("查看标签", priority=5)
 
 @mycard_query.handle()
 async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
@@ -124,8 +132,6 @@ async def _(bot: Bot, event: MessageEvent, message: Message = EventMessage()):
     await mycard_query.finish(result_message)
 
 
-mycard_bind = on_command("绑定", priority=5)
-
 @mycard_bind.handle()
 async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
     qq = str(event.user_id)
@@ -138,8 +144,6 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         await mycard_bind.finish("绑定成功！")
 
 
-
-mycard_subscribe = on_command("订阅", priority=5)
 @mycard_subscribe.handle()
 async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
     if str(msg).startswith("订阅 "):
@@ -161,7 +165,7 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         subscribe(usertype, qq, id)
         await mycard_subscribe.finish("订阅成功！")
 
-mycard_unsubscribe = on_command("退订", priority=5)
+
 @mycard_unsubscribe.handle()
 async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
     if str(msg).startswith("退订 "):
@@ -182,7 +186,7 @@ async def _(bot: Bot, event: MessageEvent, msg: Message = EventMessage()):
         unsubscribe(usertype, qq, id)
         await mycard_unsubscribe.finish("退订成功！")
 
-mycard_firstwin = on_command("首胜查询",aliases={"首赢查询"}, priority=5)
+
 @mycard_firstwin.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if input:=args.extract_plain_text().strip():
@@ -197,3 +201,45 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         await mycard_firstwin.finish(f"{user_id}已完成今日首赢！")
     else:
         await mycard_firstwin.finish(f"{user_id}还未完成今日首赢！")
+
+
+@mycard_whois.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg(), message: Message = EventMessage()):
+    # 检查是否有@某人
+    at_targets = [
+        seg.data.get("qq")
+        for seg in message
+        if seg.type == "at"
+        and seg.data.get("qq") not in ("all", str(bot.self_id))
+    ]
+    
+    if at_targets:
+        # 如果有@某人，查询被@的人的绑定信息
+        qq = at_targets[0]
+        user_id = get_mycard_user().get(str(qq))
+        if user_id:
+            await mycard_whois.finish(f"QQ号 {qq} 绑定的 MyCard 用户名为：{user_id}")
+        else:
+            await mycard_whois.finish(f"QQ号 {qq} 未绑定 MyCard 用户名")
+    elif input_text := args.extract_plain_text().strip():
+        # 如果有输入参数，作为MyCard用户名反向查找QQ号
+        mycard_username = html.unescape(input_text)
+        user_list = get_mycard_user()
+        found_qq = None
+        for qq, username in user_list.items():
+            if username == mycard_username:
+                found_qq = qq
+                break
+        
+        if found_qq:
+            await mycard_whois.finish(f"MyCard 用户名 {mycard_username} 绑定的QQ号为：{found_qq}")
+        else:
+            await mycard_whois.finish(f"MyCard 用户名 {mycard_username} 未找到对应的绑定QQ号")
+    else:
+        # 如果没有@也没有参数，查询自己的绑定信息
+        qq = str(event.user_id)
+        user_id = get_mycard_user().get(str(qq))
+        if user_id:
+            await mycard_whois.finish(f"你绑定的 MyCard 用户名为：{user_id}")
+        else:
+            await mycard_whois.finish(f"你未绑定 MyCard 用户名")

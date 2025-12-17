@@ -9,8 +9,6 @@ from nonebot.matcher import Matcher
 import base64
 import re
 import asyncio
-import shutil
-from jmcomic import download_album, create_option_by_file
 import os
 
 async def message_superusers(bot: Bot, message: str):
@@ -97,46 +95,6 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             print(f"向群{group}发送消息失败: {e}")
 
 
-spy_check = on_command('卧底检测', permission=SUPERUSER)
-
-@spy_check.handle()
-async def _(bot: Bot, event: MessageEvent):
-    members_srds = await bot.get_group_member_list(group_id=457767939)
-    members_st = await bot.get_group_member_list(group_id=876573031)
-    
-    print(len(members_srds))
-    print(len(members_st))
-
-    bot_id = bot.self_id
-    member_ids_srds = {
-        member["user_id"]: member["nickname"]
-        for member in members_srds if member["user_id"] != bot_id
-    }
-    member_ids_st = {
-        member["user_id"]: member["nickname"]
-        for member in members_st if member["user_id"] != bot_id
-    }
-
-    common_ids = set(member_ids_srds.keys()) & set(member_ids_st.keys())
-    if not common_ids:
-        await spy_check.finish(f"查询完成，没有卧底。")
-
-    result = "以下成员可能是卧底："
-    kill = []
-    for user_id in common_ids:
-        info_srds = await bot.get_group_member_info(group_id=457767939, user_id=user_id)
-        info_st = await bot.get_group_member_info(group_id=876573031, user_id=user_id)
-        if info_srds and info_st:
-            l1 = int(info_srds["level"])
-            l2 = int(info_st["level"])
-            name = info_srds["nickname"]
-            if l1 < l2:
-                kill.append({"user_id":user_id, "name":name, "l1":l1, "l2":l2})
-                result += f"\n{name},{l1},{l2}"
-    
-    await spy_check.finish(result)
-
-
 request_handler = on_request(priority=1)
 
 @request_handler.handle()
@@ -194,39 +152,3 @@ async def _(bot: Bot, event: GroupMessageEvent):
     MAX_LINES = 100
     output = "\n".join(result[:MAX_LINES])
     await srdslist.finish(output)
-
-
-async def _jm_download(bot: Bot, event: MessageEvent, comic_id: int):
-    if isinstance(event, PrivateMessageEvent):
-        friend_list = await bot.call_api("get_friend_list")
-        if not any(str(friend["user_id"]) == str(event.user_id) for friend in friend_list):
-            await bot.send(event=event, message="未添加好友无法发送文件，请先添加好友！")
-
-    loop = asyncio.get_running_loop()
-    option = create_option_by_file(os.path.join(RESOURCES_DIR, "option.yml"))
-    try:
-        await loop.run_in_executor(None, download_album, comic_id, option)
-        # 删除 JM_DIR/tmp/comic_id 目录
-        tmp_dir = os.path.join(JM_DIR, "tmp", str(comic_id))
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        # 发送pdf文件
-        pdf_path = os.path.join(JM_DIR, f"{comic_id}.pdf")
-        if isinstance(event, PrivateMessageEvent):
-            await bot.upload_private_file(user_id=event.user_id, file=pdf_path, name=f"{comic_id}.pdf")
-        else:
-            await bot.upload_group_file(group_id=event.group_id, file=pdf_path, name=f"{comic_id}.pdf")
-
-    except Exception as e:
-        await bot.send(event=event, message=f"下载失败，请重试。\n{type(e).__name__}: {e}")
-
-
-jmcomic_download = on_command('jm', priority=5, permission=SUPERUSER)
-
-@jmcomic_download.handle()
-async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
-    comic_id = args.extract_plain_text().strip()
-    if not comic_id.isdigit():
-        return
-    comic_id = int(comic_id)
-    await jmcomic_download.send(f"开始下载jm{comic_id}")
-    asyncio.create_task(_jm_download(bot, event, comic_id))

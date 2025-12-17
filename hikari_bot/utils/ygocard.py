@@ -10,9 +10,27 @@ from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 from hikari_bot.utils.constants import *
 
+YGOCDB = os.path.join(DATA_DIR, 'card_info.db')
+MOECARD_DB = os.path.join(DATA_DIR, 'card.cdb')
+CARD_PICS = os.path.join(DATA_DIR, 'pics')
 
+# ==================== 数据库操作 ====================
+
+def init_card_info_db():
+    """初始化卡片信息数据库表"""
+    conn = sqlite3.connect(YGOCDB)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cards (
+            id INTEGER PRIMARY KEY,
+            data TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 def update_db():
+    """删除先行卡和无官方简中译名的卡片，再次查询时会获取最新数据"""
     conn = sqlite3.connect(YGOCDB)
     cursor = conn.cursor()
     
@@ -25,6 +43,7 @@ def update_db():
 
 
 async def update_cdb():
+    """从远程下载最新的mc卡牌数据库文件"""
     url = "https://cdn01.moecube.com/koishipro/ygopro-database/zh-CN/cards.cdb"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -36,7 +55,226 @@ async def update_cdb():
                 print(f"Download failed: {resp.status}")
 
 
+# ==================== 图片处理 ====================
+
+async def get_unknown_card():
+    """获取未知卡片的默认图片"""
+    local_path = os.path.join(CARD_PICS, f"unknown.jpg")
+    if os.path.exists(local_path):
+        with open(local_path, "rb") as f:
+            return f.read()
+    
+    url = f"https://cdn.233.momobako.com/ygopro/textures/unknown.jpg"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    os.makedirs(CARD_PICS, exist_ok=True)
+                    with open(local_path, "wb") as f:
+                        f.write(data)
+                    return data
+                else:
+                    print(f"Image not found: {url}")
+                    return None
+    except Exception as e:
+        print(f"Error loading image {url}: {e}")
+        return None
+
+
+async def get_ygopic(id: int):
+    """根据卡片ID获取卡片图片"""
+    local_path = os.path.join(CARD_PICS, f"{id}.jpg")
+    if os.path.exists(local_path):
+        with open(local_path, "rb") as f:
+            return f.read()
+
+    # 本地没有则下载
+    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg!half"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    os.makedirs(CARD_PICS, exist_ok=True)
+                    with open(local_path, "wb") as f:
+                        f.write(data)
+                    return data
+                else:
+                    print(f"Image not found: {url}")
+                    return await get_unknown_card()
+    except Exception as e:
+        print(f"Error loading image {url}: {e}")
+        return await get_unknown_card()
+
+
+async def get_image_by_id(id: int):
+    """根据卡片ID从指定源下载卡片图片"""
+    image_url = IMAGE_ORIGIN + str(id) + ".jpg"
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(image_url) as response:
+                if response.status == 200:
+                    image_data = await response.read()   
+                    return image_data
+                else:
+                    print(f"Failed to download image: {response.status}")
+                    return None
+        except Exception as e:
+            print(f"Exception occurred while downloading image: {e}")
+            return None
+
+
+# ==================== 卡片信息获取 ====================
+
+async def get_card_info_by_id_from_net(id: str):
+    """从网络获取指定ID的卡片信息"""
+    url = CARD_SEARCH + id
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    results = data["result"]
+                    for result in results:
+                        if abs(int(result["id"])-int(id)) <= 10:
+                            return result
+                    return None
+                else:
+                    print(f"Failed to fetch data: {response.status}")
+                    return None
+        except Exception as e:
+            print(f"Exception occurred while fetching data: {e}")
+            return None
+
+async def get_card_info_by_id(id: str):
+    """根据卡片ID获取卡片详细信息（优先从本地数据库获取）"""
+    if not os.path.exists(YGOCDB):
+        init_card_info_db()
+    conn = sqlite3.connect(YGOCDB)
+    cursor = conn.cursor()
+    cursor.execute("SELECT data FROM cards WHERE id = ?", (id,))
+    row = cursor.fetchone()
+    if row:
+        conn.close()
+        return json.loads(row[0])
+    
+    data = await get_card_info_by_id_from_net(id)
+    
+    if not data:
+        conn.close()
+        return None
+    
+    cursor.execute("""
+        INSERT INTO cards (id, data)
+        VALUES (?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            data = excluded.data
+    """, (id, json.dumps(data, ensure_ascii=False)))
+    conn.commit()
+    conn.close()
+    return data
+
+
+async def get_card_info(keyword: str):
+    """根据关键词搜索获取卡片信息"""
+    url = CARD_SEARCH + keyword
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    result = data["result"][0]
+                    # if keyword_in_card(result, keyword):
+                    #     return result
+                    # else:
+                    #     return None
+                    return result
+                else:
+                    print(f"Failed to fetch data: {response.status}")
+                    return None
+        except Exception as e:
+            print(f"Exception occurred while fetching data: {e}")
+            return None
+        
+async def get_qa_by_id(id: int):
+    """根据卡片ID获取FAQ问答信息"""
+    url = FAQ + str(id)
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    html = await response.text()  # 获取网页 HTML
+                    soup = BeautifulSoup(html, 'html.parser')  # 使用 BeautifulSoup 解析
+                    for br_tag in soup.find_all('br'):
+                        br_tag.replace_with(NavigableString("\n"))
+                    q_div = soup.find('div', class_='qa question')
+                    a_div = soup.find('div', class_='qa answer')
+                    if q_div:
+                        question = q_div.get_text()
+                    else:
+                        question = None
+                    
+                    if a_div:
+                        answer = a_div.get_text()
+                    else:
+                        answer = None
+
+                    return question, answer
+                else:
+                    print(f"Failed to fetch data: {response.status}")
+                    return None, None
+    except Exception as e:
+            print(f"Exception occurred while fetching data: {e}")
+            return None, None
+
+# ==================== 工具函数 ====================
+
+def is_card_id(keyword: str):
+    """判断输入的关键词是否为有效的卡片ID"""
+    if not keyword.isdigit():
+        return False
+    
+    id = int(keyword)
+    if id < 10000000 and id != 10000:
+        return False
+    if id > 99999999:
+        return False
+    return True
+
+def keyword_in_card(card, keyword: str):
+    """递归检查卡片信息中是否包含指定关键词"""
+    if isinstance(card, dict):
+        for key, value in card.items():
+            if keyword_in_card(value, keyword):
+                return True
+    elif isinstance(card, list):
+        for item in card:
+            if keyword_in_card(item, keyword):
+                return True
+    elif isinstance(card, str):
+        if keyword.lower() in card.lower():
+            return True
+    return False
+
+def random_card():
+    """随机获取一张卡片的ID"""
+    conn = sqlite3.connect(MOECARD_DB)
+    cursor = conn.cursor()
+
+    try:
+        # 查询所有卡片id（也就是卡密）
+        cursor.execute("SELECT id FROM texts")
+        rows = cursor.fetchall()
+        # 随机选择一个卡密
+        random_id = random.choice(rows)[0]
+        return random_id
+    finally:
+        conn.close()
+
+
 def metaltronus_calc(id: int):
+    """用于查询共界神渊体，根据给定卡片ID查找满足条件的卡片ID列表"""
     if not os.path.exists(MOECARD_DB):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(update_cdb())
@@ -86,222 +324,3 @@ def metaltronus_calc(id: int):
             result_ids.append(cid)
     conn.close()
     return result_ids
-
-
-def random_card():
-    conn = sqlite3.connect(MOECARD_DB)
-    cursor = conn.cursor()
-
-    try:
-        # 查询所有卡片id（也就是卡密）
-        cursor.execute("SELECT id FROM texts")
-        rows = cursor.fetchall()
-        # 随机选择一个卡密
-        random_id = random.choice(rows)[0]
-        return random_id
-    finally:
-        conn.close()
-
-
-async def get_unknown_card():
-    local_path = os.path.join(CARD_PICS, f"unknown.jpg")
-    if os.path.exists(local_path):
-        with open(local_path, "rb") as f:
-            return f.read()
-    
-    url = f"https://cdn.233.momobako.com/ygopro/textures/unknown.jpg"
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.read()
-                    os.makedirs(CARD_PICS, exist_ok=True)
-                    with open(local_path, "wb") as f:
-                        f.write(data)
-                    return data
-                else:
-                    print(f"Image not found: {url}")
-                    return None
-    except Exception as e:
-        print(f"Error loading image {url}: {e}")
-        return None
-
-
-async def get_ygopic(id: int):
-    local_path = os.path.join(CARD_PICS, f"{id}.jpg")
-    if os.path.exists(local_path):
-        with open(local_path, "rb") as f:
-            return f.read()
-
-    # 本地没有则下载
-    url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg!half"
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.read()
-                    os.makedirs(CARD_PICS, exist_ok=True)
-                    with open(local_path, "wb") as f:
-                        f.write(data)
-                    return data
-                else:
-                    print(f"Image not found: {url}")
-                    return await get_unknown_card()
-    except Exception as e:
-        print(f"Error loading image {url}: {e}")
-        return await get_unknown_card()
-
-
-
-async def get_image_by_id(id: int):
-    image_url = IMAGE_ORIGIN + str(id) + ".jpg"
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(image_url) as response:
-                if response.status == 200:
-                    image_data = await response.read()   
-                    return image_data
-                else:
-                    print(f"Failed to download image: {response.status}")
-                    return None
-        except Exception as e:
-            print(f"Exception occurred while downloading image: {e}")
-            return None
-
-def keyword_in_card(card, keyword: str):
-    # 如果 card 是字典，递归检查它的值
-    if isinstance(card, dict):
-        for key, value in card.items():
-            if keyword_in_card(value, keyword):
-                return True
-    # 如果 card 是列表，递归检查列表的每一项
-    elif isinstance(card, list):
-        for item in card:
-            if keyword_in_card(item, keyword):
-                return True
-    # 如果 card 是字符串，直接检查关键词是否在字符串中
-    elif isinstance(card, str):
-        if keyword.lower() in card.lower():
-            return True
-    # 如果 card 是其他类型，跳过
-    return False
-
-def init_card_info_db():
-    conn = sqlite3.connect(YGOCDB)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS cards (
-            id INTEGER PRIMARY KEY,
-            data TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-async def get_card_info_by_id(id: str):
-    if not os.path.exists(YGOCDB):
-        init_card_info_db()
-    conn = sqlite3.connect(YGOCDB)
-    cursor = conn.cursor()
-    cursor.execute("SELECT data FROM cards WHERE id = ?", (id,))
-    row = cursor.fetchone()
-    if row:
-        conn.close()
-        return json.loads(row[0])
-    
-    data = await get_card_info_by_id_from_net(id)
-    
-    if not data:
-        conn.close()
-        return None
-    
-    cursor.execute("""
-        INSERT INTO cards (id, data)
-        VALUES (?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-            data = excluded.data
-    """, (id, json.dumps(data, ensure_ascii=False)))
-    conn.commit()
-    conn.close()
-    return data
-
-
-async def get_card_info_by_id_from_net(id: str):
-    url = CARD_SEARCH + id
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    results = data["result"]
-                    for result in results:
-                        if abs(int(result["id"])-int(id)) <= 10:
-                            return result
-                    return None
-                else:
-                    print(f"Failed to fetch data: {response.status}")
-                    return None
-        except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
-            return None
-
-async def get_card_info(keyword: str):
-    url = CARD_SEARCH + keyword
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    result = data["result"][0]
-                    # if keyword_in_card(result, keyword):
-                    #     return result
-                    # else:
-                    #     return None
-                    return result
-                else:
-                    print(f"Failed to fetch data: {response.status}")
-                    return None
-        except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
-            return None
-        
-def is_card_id(keyword: str):
-    if not keyword.isdigit():
-        return False
-    
-    id = int(keyword)
-    if id < 10000000 and id != 10000:
-        return False
-    if id > 99999999:
-        return False
-    return True
-
-async def get_qa_by_id(id: int):
-    url = FAQ + str(id)
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    html = await response.text()  # 获取网页 HTML
-                    soup = BeautifulSoup(html, 'html.parser')  # 使用 BeautifulSoup 解析
-                    for br_tag in soup.find_all('br'):
-                        br_tag.replace_with(NavigableString("\n"))
-                    q_div = soup.find('div', class_='qa question')
-                    a_div = soup.find('div', class_='qa answer')
-                    if q_div:
-                        question = q_div.get_text()
-                    else:
-                        question = None
-                    
-                    if a_div:
-                        answer = a_div.get_text()
-                    else:
-                        answer = None
-
-                    return question, answer
-                else:
-                    print(f"Failed to fetch data: {response.status}")
-                    return None, None
-    except Exception as e:
-            print(f"Exception occurred while fetching data: {e}")
-            return None, None
