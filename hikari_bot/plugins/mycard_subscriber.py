@@ -5,6 +5,7 @@ from nonebot import get_driver, logger
 from nonebot.adapters.onebot.v11 import Bot
 from hikari_bot.utils.constants import *
 from hikari_bot.utils.mycard import *
+from hikari_bot.utils.feature_flags import get_notify_enabled, set_notify_enabled
 from hikari_bot.plugins.common import message_superusers
 
 _stop_event = asyncio.Event()
@@ -12,6 +13,8 @@ _stop_event = asyncio.Event()
 _ws_task: asyncio.Task | None = None
 
 room_list = {}
+
+notify_switch = on_command("切换通知", permission=SUPERUSER)
 
 async def _send_notifications(bot: Bot, subscribers: list, message: str, message_type: str):
     for subscriber in subscribers:
@@ -89,7 +92,8 @@ async def handle_delete_event(bot: Bot, room_id):
         pt_deltas = [rec["pta"] - rec["pta_ex"], rec["ptb"] - rec["ptb_ex"]]
         pt_strs = [f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}" for delta in pt_deltas]
 
-        #await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
+        if get_notify_enabled():
+            await message_superusers(bot, f"对局已完成：{player_ids[0]}({pt_strs[0]}) vs {player_ids[1]}({pt_strs[1]})")
 
         if rec["isfirstwin"]:
             for i, player_id in enumerate(player_ids):
@@ -181,3 +185,12 @@ async def _on_shutdown():
         except Exception:
             pass
         logger.info("[mycard] WS 任务已停止")
+
+@notify_switch.handle()
+async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+    if get_notify_enabled():
+        set_notify_enabled(False)
+        await notify_switch.finish("已关闭MyCard对局通知。")
+    else:
+        set_notify_enabled(True)
+        await notify_switch.finish("已开启MyCard对局通知。")
