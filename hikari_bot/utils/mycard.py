@@ -41,6 +41,7 @@ async def fetch_latest_record(username: str, delay: float = 0):
 
 async def fetch_player_history(username: str, page_num: int = 999999):
     """
+        https://sapi.moecube.com:444/ygopro/arena/history
         获取玩家历史对战记录
         数据格式：
         [{
