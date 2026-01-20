@@ -84,10 +84,11 @@ async def get_unknown_card():
 
 async def get_ygopic(id: int, half: bool = True):
     """根据卡片ID获取卡片图片"""
-    local_path = os.path.join(CARD_PICS, f"{id}.jpg")
-    if os.path.exists(local_path):
-        with open(local_path, "rb") as f:
-            return f.read()
+    if half:
+        local_path = os.path.join(CARD_PICS, f"{id}.jpg")
+        if os.path.exists(local_path):
+            with open(local_path, "rb") as f:
+                return f.read()
 
     # 本地没有则下载
     url = f"https://cdn.233.momobako.com/ygopro/pics/{id}.jpg{'!half' if half else ''}"
