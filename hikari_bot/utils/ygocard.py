@@ -259,7 +259,7 @@ def keyword_in_card(card, keyword: str):
             return True
     return False
 
-def random_card():
+def random_card(seed: int = None):
     """随机获取一张卡片的ID"""
     conn = sqlite3.connect(MOECARD_DB)
     cursor = conn.cursor()
@@ -269,6 +269,8 @@ def random_card():
         cursor.execute("SELECT id FROM texts")
         rows = cursor.fetchall()
         # 随机选择一个卡密
+        if seed is not None:
+            random.seed(seed)
         random_id = random.choice(rows)[0]
         return random_id
     finally:

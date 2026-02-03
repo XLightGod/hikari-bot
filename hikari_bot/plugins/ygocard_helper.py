@@ -1,14 +1,16 @@
 import base64
 from io import BytesIO
 import re
+from datetime import datetime
 from nonebot import on_command
+from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.params import CommandArg
 from hikari_bot.utils.ygocard import *
 from hikari_bot.utils.ygodeck import *
 
-ygo_random_card = on_command("随机一卡", priority=5)
+ygo_random_card = on_command("随机一卡", priority=5, permission=SUPERUSER)
 @ygo_random_card.handle()
 async def _(bot: Bot, event: MessageEvent):
     image = await get_ygopic(random_card(), half=False)
@@ -17,6 +19,19 @@ async def _(bot: Bot, event: MessageEvent):
         return
     image_base64 = base64.b64encode(image).decode('utf-8')
     await ygo_random_card.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
+
+ygo_daily_card = on_command("每日一卡", priority=5)
+@ygo_daily_card.handle()
+async def _(bot: Bot, event: MessageEvent):
+    today = datetime.now().strftime("%Y-%m-%d")
+    seed_str = f"{event.get_user_id()}_{today}"
+    seed = hash(seed_str) % (2**31 - 1)
+    image = await get_ygopic(random_card(seed), half=False)
+    if not image:
+        await ygo_daily_card.finish("未找到每日卡片！")
+        return
+    image_base64 = base64.b64encode(image).decode('utf-8')
+    await ygo_daily_card.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
 
 ygo_card_pic = on_command("查卡图", aliases={"游戏王卡图", "卡图"}, priority=5)
