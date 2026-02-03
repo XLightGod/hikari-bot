@@ -3,7 +3,8 @@ import aiohttp
 import json
 from nonebot import get_driver, logger, on_command
 from nonebot.permission import SUPERUSER
-from nonebot.adapters.onebot.v11 import Bot
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, Message
+from nonebot.params import CommandArg
 from hikari_bot.utils.constants import *
 from hikari_bot.utils.mycard import *
 from hikari_bot.utils.feature_flags import get_notify_enabled, set_notify_enabled
