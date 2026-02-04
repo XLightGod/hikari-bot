@@ -1,6 +1,7 @@
 import base64
 from io import BytesIO
 import re
+import asyncio
 from datetime import datetime
 from nonebot import on_command
 from nonebot.permission import SUPERUSER
@@ -182,7 +183,13 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             await ygo_metaltronus_calc.finish("未找到对应卡片！")
             return
         
-        result = metaltronus_calc(card_info["id"])
+        # 使用 asyncio.to_thread 将同步的计算操作放到线程中执行，避免阻塞事件循环
+        try:
+            result = await asyncio.to_thread(metaltronus_calc, card_info["id"])
+        except Exception as e:
+            await ygo_metaltronus_calc.finish(f"计算过程中出现错误：{str(e)}")
+            return
+            
         if not result:
             await ygo_metaltronus_calc.finish("没有满足条件的卡片！")
             return
