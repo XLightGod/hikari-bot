@@ -10,6 +10,9 @@ from hikari_bot.utils.constants import *
 mycard_user_file = os.path.join(DATA_DIR, 'mycard_user.json')
 mycard_subscribe_file = os.path.join(DATA_DIR, 'subscribe.json')
 
+# 内存缓存
+_subscribe_cache = None
+
 async def is_first_win(username: str) -> bool:
     """检查用户今日是否首胜"""
     url = f"{MC_BASE_API}{API_FIRST_WIN}"
@@ -173,8 +176,8 @@ def add_mycard_user(qq, id):
     save_mycard_user(user_list)
 
 
-def get_subscribe_list():
-    """读取本地存储的订阅列表"""
+def _load_subscribe_list_from_file():
+    """从文件加载订阅列表到内存"""
     try:
         with open(mycard_subscribe_file, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -184,10 +187,19 @@ def get_subscribe_list():
         logger.error("文件格式错误，无法解析")
         return {}
 
+def get_subscribe_list():
+    """读取订阅列表（从内存缓存）"""
+    global _subscribe_cache
+    if _subscribe_cache is None:
+        _subscribe_cache = _load_subscribe_list_from_file()
+    return _subscribe_cache
+
 def save_subscribe_list(subscribe_list):
-    """保存订阅列表到本地文件"""
+    """保存订阅列表到文件并更新内存缓存"""
+    global _subscribe_cache
     with open(mycard_subscribe_file, 'w', encoding='utf-8') as f:
         json.dump(subscribe_list, f, indent=4, ensure_ascii=False)
+    _subscribe_cache = subscribe_list
 
 def subscribe(usertype, qq, id):
     """添加用户订阅"""
