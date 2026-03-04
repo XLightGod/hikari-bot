@@ -70,10 +70,11 @@ def clean_card_name(name):
         return name
     # 保留中文、英文字母、日文假名/汉字、数字
     # \u4e00-\u9fff: 中日韩统一表意文字 (汉字)
-    # \u3040-\u30ff: 日文平假名和片假名
+    # \u3040-\u309f: 日文平假名
+    # \u30a0-\u30fa\u30fc-\u30ff: 片假名(排除\u30fb中点・)
     # a-zA-Z: 英文字母
     # 0-9: 数字
-    cleaned = re.sub(r'[^\u4e00-\u9fff\u3040-\u30ffa-zA-Z0-9]', '', name)
+    cleaned = re.sub(r'[^\u4e00-\u9fff\u3040-\u309f\u30a0-\u30fa\u30fc-\u30ffa-zA-Z0-9]', '', name)
     return cleaned
 
 
