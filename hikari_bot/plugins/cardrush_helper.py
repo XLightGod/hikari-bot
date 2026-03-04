@@ -99,7 +99,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             return
         
         # 格式化查询结果
-        reply_text = f"【{input_text}】的价格信息：\n\n"
+        reply_text = f"【{input_text}】的价格信息：\n"
         
         for i, card in enumerate(results[:10]):  # 限制显示前10个结果
             card_name = card.get("name", "未知")
@@ -107,13 +107,10 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             card_rarity_jp = card.get("rarity", "")
             card_model = card.get("model_number", "未知")
             
-            # 将日文稀有度转换为英文缩写显示
-            card_rarity_display = translate_rarity_to_english(card_rarity_jp)
+            card_rarity = translate_rarity_to_english(card_rarity_jp)
             
-            reply_text += f"{i+1}. {card_name}\n"
-            reply_text += f"   价格：{card_price_val}円\n"
-            reply_text += f"   稀有度：{card_rarity_display}\n"
-            reply_text += f"   型号：{card_model}\n\n"
+            reply_text += f"{card_name}【{card_rarity}】【{card_model}】"
+            reply_text += f"  买取价格：{card_price_val}円\n"
         
         if len(results) > 10:
             reply_text += f"还有 {len(results) - 10} 个结果未显示..."
