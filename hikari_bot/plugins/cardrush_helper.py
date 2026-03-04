@@ -5,6 +5,7 @@ from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.params import CommandArg
 from nonebot.exception import FinishedException
 from hikari_bot.utils.cardrush import query as query_card_prices
+from hikari_bot.utils.ygocard import get_card_info
 
 # 稀有度映射表：日文名称 → 英文缩写 (支持多个日文对应同一个英文)
 RARITY_MAPPING = {
@@ -79,14 +80,22 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         name = parts[0]
         rarity = parts[1] if len(parts) > 1 else None
         model_number = parts[2] if len(parts) > 2 else None
+
+        card_info = await get_card_info(name)
+
+        if not card_info:
+            await card_price.finish("未找到对应卡片！")
+            return
+
+        name_jp = card_info["jp_name"]
         
         rarity_jp = translate_rarity_to_japanese(rarity)
         
         loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(None, query_card_prices, name, rarity_jp, model_number)
+        results = await loop.run_in_executor(None, query_card_prices, name_jp, rarity_jp, model_number)
         
         if not results:
-            await card_price.finish(f"未找到相关卡片：{input_text}")
+            await card_price.finish(f"没有对应卡片的价格信息！")
             return
         
         # 格式化查询结果
