@@ -1,4 +1,5 @@
 import asyncio
+import re
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
@@ -63,6 +64,18 @@ def translate_rarity_to_english(rarity_jp):
         return "未知"
     return RARITY_MAPPING.get(rarity_jp, rarity_jp)
 
+def clean_card_name(name):
+    """清理卡片名称，去掉所有符号，只保留中文、英文、日文和数字"""
+    if not name:
+        return name
+    # 保留中文、英文字母、日文假名/汉字、数字
+    # \u4e00-\u9fff: 中日韩统一表意文字 (汉字)
+    # \u3040-\u30ff: 日文平假名和片假名
+    # a-zA-Z: 英文字母
+    # 0-9: 数字
+    cleaned = re.sub(r'[^\u4e00-\u9fff\u3040-\u30ffa-zA-Z0-9]', '', name)
+    return cleaned
+
 
 card_price = on_command("卡价查询", aliases={"查卡价"}, priority=5)
 @card_price.handle()
@@ -92,7 +105,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         rarity_jp = translate_rarity_to_japanese(rarity)
         
         loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(None, query_card_prices, name_jp, rarity_jp, model_number)
+        results = await loop.run_in_executor(None, query_card_prices, clean_card_name(name_jp), rarity_jp, model_number)
         
         if not results:
             await card_price.finish(f"没有对应卡片的价格信息！")
