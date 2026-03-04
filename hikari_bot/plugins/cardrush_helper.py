@@ -110,7 +110,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             card_rarity = translate_rarity_to_english(card_rarity_jp)
             
             reply_text += f"\n{card_name}【{card_model}({card_rarity})】\n"
-            reply_text += f"  买取价格：{card_price_val}円"
+            reply_text += f"    买取价格：{card_price_val}円"
         
         if len(results) > 10:
             reply_text += f"还有 {len(results) - 10} 个结果未显示..."
