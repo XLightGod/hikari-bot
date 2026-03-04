@@ -152,7 +152,7 @@ async def check_price_changes():
         if changes:
             message = "🔔卡价变化通知：\n"
             
-            for change in changes[:20]:  # 限制显示前20个变化
+            for change in changes[:100]:  # 限制显示前100个变化
                 name = change["name"]
                 rarity = change["rarity"] or "未知"
                 model_number = change["model_number"] or "未知"
@@ -176,11 +176,13 @@ async def check_price_changes():
                     message += f"🗑️{name}【{model_number}({rarity})】\n"
                     message += f"  {change['old_price']}円 → 0円\n"
             
-            if len(changes) > 20:
-                message += f"还有 {len(changes) - 20} 个变化未显示..."
+            if len(changes) > 100:
+                message += f"还有 {len(changes) - 100} 个变化未显示..."
             
             # 发送通知给管理员
             await message_superusers(message)
+        else:
+            await message_superusers("已执行卡价检查，暂无变化。")
         
         # 保存新价格到数据库
         save_prices(new_prices)
@@ -210,13 +212,7 @@ price_check = on_command("检查卡价", permission=SUPERUSER)
 
 @price_check.handle()
 async def _(bot: Bot, event: MessageEvent):
-    await price_check.send("开始检查卡价变化...")
-    
-    try:
-        await check_price_changes()
-        await price_check.finish("卡价检查完成！")
-    except Exception as e:
-        await price_check.finish(f"卡价检查失败：{str(e)}")
+    await check_price_changes()
 
 
 # 启动价格监控
