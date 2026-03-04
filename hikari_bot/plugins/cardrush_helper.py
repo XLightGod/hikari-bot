@@ -127,7 +127,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
             reply_text += f"    买取价格：{card_price_val}円"
         
         if len(results) > 10:
-            reply_text += f"还有 {len(results) - 10} 个结果未显示..."
+            reply_text += f"\n还有 {len(results) - 10} 个结果未显示..."
         
         await card_price.finish(reply_text)
         
