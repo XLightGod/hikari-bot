@@ -181,8 +181,8 @@ async def check_price_changes():
             
             # 发送通知给管理员
             await message_superusers(message)
-        else:
-            await message_superusers("已执行卡价检查，暂无变化。")
+        # else:
+        #     await message_superusers("已执行卡价检查，暂无变化。")
         
         # 保存新价格到数据库
         save_prices(new_prices)
