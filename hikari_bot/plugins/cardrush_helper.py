@@ -68,19 +68,20 @@ def translate_rarity_to_english(rarity_jp):
     return RARITY_MAPPING.get(rarity_jp, rarity_jp)
 
 def clean_card_name(name):
-    """清理卡片名称，去掉所有符号和空格，只保留中文、英文、日文和数字"""
+    """清理卡片名称，去掉所有符号和空格，只保留中文、英文、日文、数学符号和数字"""
     if not name:
         return name
     # 先处理特定的全角符号
     name = name.replace('＜', '').replace('＞', '')
     
-    # 保留中文、英文字母、日文假名/汉字、数字，去掉空格和所有符号
+    # 保留中文、英文字母、日文假名/汉字、数字，以及特定的数学符号如∀
     # \u4e00-\u9fff: 中日韩统一表意文字 (汉字)
     # \u3040-\u309f: 日文平假名
     # \u30a0-\u30fa\u30fc-\u30ff: 片假名(排除\u30fb中点・)
+    # \u2200-\u22ff: 数学符号块（包含∀等符号）
     # a-zA-Z: 英文字母
     # 0-9: 数字
-    cleaned = re.sub(r'[^\u4e00-\u9fff\u3040-\u309f\u30a0-\u30fa\u30fc-\u30ffa-zA-Z0-9]', '', name)
+    cleaned = re.sub(r'[^\u4e00-\u9fff\u3040-\u309f\u30a0-\u30fa\u30fc-\u30ff\u2200-\u22ffa-zA-Z0-9]', '', name)
     return cleaned
 
 
