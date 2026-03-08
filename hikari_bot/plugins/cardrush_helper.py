@@ -115,7 +115,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         results = await loop.run_in_executor(None, query_card_prices, clean_card_name(name_jp), rarity_jp, model_number)
         
         if not results:
-            await card_price.finish(f"没有对应卡片的价格信息！")
+            await card_price.finish(f"没有{name_jp}的价格信息！")
             return
         
         # 格式化查询结果
