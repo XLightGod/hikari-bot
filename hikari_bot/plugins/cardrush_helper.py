@@ -144,7 +144,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
 
 # 定时价格监控任务
-async def check_price_changes():
+async def check_price_changes(auto_retry=False):
     """检查卡价变化并通知管理员"""
     try:
         # 获取最新价格
@@ -192,7 +192,11 @@ async def check_price_changes():
         save_prices(new_prices)
         
     except Exception as e:
-        await message_superusers(f"卡价监控出错：{str(e)}")
+        if auto_retry:
+            await asyncio.sleep(60)
+            await check_price_changes(auto_retry=True)
+        else:
+            await message_superusers(f"卡价监控出错：{str(e)}")
 
 
 async def schedule_price_monitor():
@@ -206,8 +210,9 @@ async def schedule_price_monitor():
             else:
                 await asyncio.sleep(30)
         except Exception as e:
-            print(f"价格监控调度器错误：{e}")
-            await asyncio.sleep(300)  # 出错时等待5分钟
+            await asyncio.sleep(60)
+            await check_price_changes(auto_retry=True)
+
 
 
 # 手动触发价格检查
