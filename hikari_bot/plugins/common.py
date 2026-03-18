@@ -54,8 +54,28 @@ async def _(bot: Bot, event: MessageEvent):
     except Exception as e:
         await reload.finish(f"重载插件失败：{e}")
 
-whitelist = on_command("添加至白名单", aliases={"白名单"}, permission=SUPERUSER)
+reboot = on_command("重启", permission=SUPERUSER)
+@reboot.handle()
+async def _(bot: Bot, event: MessageEvent):
+    try:
+        await reboot.send("正在重启服务器...")
+        proc = await asyncio.create_subprocess_exec(
+            "sudo", "reboot",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        
+        if proc.returncode != 0:
+            error_message = stderr.decode().strip() if stderr else "未知错误"
+            await reboot.finish(f"重启失败：{error_message}")
+        else:
+            await reboot.finish("重启命令已执行")
+            
+    except Exception as e:
+        await reboot.finish(f"重启服务器失败：{e}")
 
+whitelist = on_command("添加至白名单", aliases={"白名单"}, permission=SUPERUSER)
 @whitelist.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     if args:
