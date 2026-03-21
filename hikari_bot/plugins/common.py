@@ -26,6 +26,40 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
     image_base64 = base64.b64encode(image_data).decode("utf-8")
     await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
 
+version = on_command("版本查询", permission=SUPERUSER)
+@version.handle()
+async def _(bot: Bot, event: MessageEvent):
+    try:
+        # 获取git信息的命令
+        git_commands = {
+            "commit_message": ["git", "log", "-1", "--pretty=format:%s"],
+            "commit_date": ["git", "log", "-1", "--pretty=format:%ad", "--date=format:%Y-%m-%d %H:%M:%S"]
+        }
+        
+        git_info = {}
+        for key, cmd in git_commands.items():
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, stderr = await proc.communicate()
+                if proc.returncode == 0:
+                    git_info[key] = stdout.decode().strip()
+                else:
+                    git_info[key] = "获取失败"
+            except Exception:
+                git_info[key] = "获取失败"
+        
+        # 格式化版本信息
+        version_info = f"""提交信息: {git_info.get('commit_message', '无')}
+提交时间: {git_info.get('commit_date', '未知')}"""
+        
+        await version.finish(version_info)
+        
+    except Exception as e:
+        await version.finish(f"版本信息查询失败：{e}")
 
 reload = on_command("重载插件", permission=SUPERUSER)
 @reload.handle()
