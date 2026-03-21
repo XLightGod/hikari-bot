@@ -202,17 +202,12 @@ async def check_price_changes(auto_retry=False):
 async def schedule_price_monitor():
     """定时价格监控调度器"""
     while True:
-        try:
-            now = datetime.now()
-            if now.minute in [1, 16, 31, 46] and now.second < 60:
-                await check_price_changes()
-                await asyncio.sleep(600)
-            else:
-                await asyncio.sleep(30)
-        except Exception as e:
-            await asyncio.sleep(60)
+        now = datetime.now()
+        if now.minute in [1, 16, 31, 46] and now.second < 60:
             await check_price_changes(auto_retry=True)
-
+            await asyncio.sleep(600)
+        else:
+            await asyncio.sleep(30)
 
 
 # 手动触发价格检查
