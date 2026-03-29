@@ -192,11 +192,11 @@ async def check_price_changes(auto_retry=False):
         save_prices(new_prices)
         
     except Exception as e:
+        await message_superusers(f"卡价监控出错：{str(e)}")
         if auto_retry:
             await asyncio.sleep(60)
-            await check_price_changes(auto_retry=True)
-        else:
-            await message_superusers(f"卡价监控出错：{str(e)}")
+            return await check_price_changes(auto_retry=True)
+            
 
 
 async def schedule_price_monitor():
