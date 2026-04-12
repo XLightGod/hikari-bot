@@ -9,6 +9,7 @@ from hikari_bot.utils.constants import *
 from hikari_bot.utils.mycard import *
 from hikari_bot.utils.feature_flags import get_notify_enabled, set_notify_enabled
 from hikari_bot.utils.whitelist import message_superusers
+from hikari_bot.plugins.common import log_message
 
 _stop_event = asyncio.Event()
 
@@ -29,8 +30,7 @@ async def _send_notifications(bot: Bot, subscribers: list, message: str, message
             else:
                 await bot.send_private_msg(user_id=int(qq), message=message)
         except Exception as e:
-            pass
-            #await message_superusers(f"发送通知失败: {e}")
+            log_message(f"[mycard_subscriber] _send_notifications error: {e}")
 
 
 async def handle_create_event(bot: Bot, player_ids: list):
@@ -48,7 +48,7 @@ async def handle_create_event(bot: Bot, player_ids: list):
             asyncio.create_task(_send_notifications(bot, list(common_subscribers), message, "group"))
         
     except Exception as e:
-        await message_superusers(f"处理create事件出错: {e}")
+        await log_message(f"[mycard_subscriber] handle_create_event error: {e}")
 
 
 async def handle_delete_event(bot: Bot, room_id):
@@ -105,7 +105,7 @@ async def handle_delete_event(bot: Bot, room_id):
                         asyncio.create_task(_send_notifications(bot, subscribe_list.get(player_id, []), message, "both"))
         
     except Exception as e:
-        await message_superusers(f"处理delete事件出错: {e}")
+        await log_message(f"[mycard_subscriber] handle_delete_event error: {e}")
 
 
 async def process_mycard_event(bot: Bot, payload: dict):
@@ -141,21 +141,21 @@ async def ws_runner(bot: Bot):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.ws_connect(WS_URL, heartbeat=30) as ws:
-                    logger.info("[mycard] 已连接到 WS")
+                    await log_message("[mycard_subscriber] WS connected.")
                     backoff = 1  # 连接成功后重置退避
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
                             try:
                                 data = json.loads(msg.data)
-                                logger.info(f"[mycard raw] {msg.data}")
+                                # await log_message(f"[mycard raw] {msg.data}")
                                 await process_mycard_event(bot, data)
                             except Exception:
-                                logger.exception(f"[mycard raw] {msg.data}")
+                                await log_message(f"[mycard_subscriber] JSON parse error: {msg.data}")
                         elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
-                            logger.warning("[mycard] 连接被关闭或出错，准备重连")
+                            await log_message("[mycard_subscriber] WS connection closed or error.")
                             break
-        except Exception:
-            logger.exception(f"[mycard] WS 出错")
+        except Exception as e:
+            await log_message(f"[mycard_subscriber] WS error: {str(e)}")
         
         await asyncio.sleep(backoff)
         backoff = min(backoff * 2, max_backoff)
@@ -171,10 +171,10 @@ async def _on_bot_connect(bot: Bot):
             await _ws_task
         except Exception:
             pass
-        logger.info("[mycard] 已取消旧的 WS 任务")
+        await log_message("[mycard_subscriber] MyCard monitor canceled old task.")
     
     _ws_task = asyncio.create_task(ws_runner(bot))
-    logger.info("[mycard] WS 监听任务已启动")
+    await log_message("[mycard_subscriber] MyCard monitor started.")
 
 @driver.on_shutdown
 async def _on_shutdown():
@@ -185,7 +185,7 @@ async def _on_shutdown():
             await _ws_task
         except Exception:
             pass
-        logger.info("[mycard] WS 任务已停止")
+        await log_message("[mycard_subscriber] MyCard monitor canceled on shutdown.")
 
 async def ws_status_check():
     global _ws_task

@@ -6,6 +6,7 @@ from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot.exception import FinishedException
+from hikari_bot.plugins.common import log_message
 from hikari_bot.utils.cardrush import query as query_card_prices, query_all, compare_prices, save_prices
 from hikari_bot.utils.ygocard import get_card_info
 from hikari_bot.utils.whitelist import message_superusers
@@ -144,60 +145,49 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
 
 # 定时价格监控任务
-async def check_price_changes(auto_retry=False):
+async def check_price_changes():
     """检查卡价变化并通知管理员"""
-    try:
-        # 获取最新价格
-        new_prices = query_all()
+    # 获取最新价格
+    new_prices = query_all()    
+    # 比较价格变化
+    changes = compare_prices(new_prices)
+
+    if changes:
+        message = "🔔卡价变化通知：\n"
         
-        # 比较价格变化
-        changes = compare_prices(new_prices)
-        
-        if changes:
-            message = "🔔卡价变化通知：\n"
+        for change in changes[:100]:  # 限制显示前100个变化
+            name = change["name"]
+            rarity = change["rarity"] or "未知"
+            model_number = change["model_number"] or "未知"
             
-            for change in changes[:100]:  # 限制显示前100个变化
-                name = change["name"]
-                rarity = change["rarity"] or "未知"
-                model_number = change["model_number"] or "未知"
+            if change["change_type"] == "new":
+                message += f"🆕{name}【{model_number}({rarity})】\n"
+                message += f"   0円 → {change['new_price']}円\n"
+            elif change["change_type"] == "changed":
+                old_price = change["old_price"]
+                new_price = change["new_price"]
+                diff = change["price_diff"]
                 
-                if change["change_type"] == "new":
-                    message += f"🆕{name}【{model_number}({rarity})】\n"
-                    message += f"   0円 → {change['new_price']}円\n"
-                elif change["change_type"] == "changed":
-                    old_price = change["old_price"]
-                    new_price = change["new_price"]
-                    diff = change["price_diff"]
-                    
-                    if diff > 0:
-                        emoji = "📈"
-                    else:
-                        emoji = "📉"
-                    
-                    message += f"{emoji}{name}【{model_number}({rarity})】\n"
-                    message += f"  {old_price}円 → {new_price}円\n"
-                elif change["change_type"] == "deleted":
-                    message += f"🗑️{name}【{model_number}({rarity})】\n"
-                    message += f"  {change['old_price']}円 → 0円\n"
-            
-            if len(changes) > 100:
-                message += f"还有 {len(changes) - 100} 个变化未显示..."
-            
-            # 发送通知给管理员
-            await message_superusers(message)
-        # else:
-        #     await message_superusers("已执行卡价检查，暂无变化。")
+                if diff > 0:
+                    emoji = "📈"
+                else:
+                    emoji = "📉"
+                
+                message += f"{emoji}{name}【{model_number}({rarity})】\n"
+                message += f"  {old_price}円 → {new_price}円\n"
+            elif change["change_type"] == "deleted":
+                message += f"🗑️{name}【{model_number}({rarity})】\n"
+                message += f"  {change['old_price']}円 → 0円\n"
         
+        if len(changes) > 100:
+            message += f"还有 {len(changes) - 100} 个变化未显示..."
+        
+        # 发送通知给管理员
+        await message_superusers(message)
         # 保存新价格到数据库
         save_prices(new_prices)
-        
-    except Exception as e:
-        if auto_retry:
-            await asyncio.sleep(60)
-            return await check_price_changes(auto_retry=True)
-        else:
-            await message_superusers(f"卡价监控出错：{str(e)}")
-            
+
+    await log_message("[cardrush_helper] Finish checking with %d change(s)." % len(changes))
 
 
 async def schedule_price_monitor():
@@ -205,10 +195,18 @@ async def schedule_price_monitor():
     while True:
         now = datetime.now()
         if now.minute in [5, 20, 35, 50] and now.second < 60:
-            await check_price_changes(auto_retry=True)
+            while True:
+                try:
+                    await check_price_changes()
+                except Exception as e:
+                    await log_message(f"[cardrush_helper] check_price_changes error: {str(e)}")
+                    await asyncio.sleep(60)
+                else:
+                    break
+
             await asyncio.sleep(600)
         else:
-            await asyncio.sleep(30)
+            await asyncio.sleep(60)
 
 
 # 手动触发价格检查
@@ -230,10 +228,10 @@ async def _start_price_monitor(bot: Bot):
             await _cr_task
         except Exception:
             pass
-        logger.info("[mycard] 已取消旧的价格监控任务")
+        await log_message("CardRush monitor canceled old task.")
 
     _cr_task = asyncio.create_task(schedule_price_monitor())
-    logger.info("[mycard] 价格监控任务已启动")
+    await log_message("CardRush monitor started.")
 
 async def cr_status_check():
     global _cr_task
