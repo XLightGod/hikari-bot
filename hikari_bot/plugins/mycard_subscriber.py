@@ -176,7 +176,6 @@ async def _on_bot_connect(bot: Bot):
     _ws_task = asyncio.create_task(ws_runner(bot))
     logger.info("[mycard] WS 监听任务已启动")
 
-
 @driver.on_shutdown
 async def _on_shutdown():
     global _ws_task
@@ -187,6 +186,12 @@ async def _on_shutdown():
         except Exception:
             pass
         logger.info("[mycard] WS 任务已停止")
+
+async def ws_status_check():
+    global _ws_task
+    if _ws_task and not _ws_task.done():
+        return True
+    return False
 
 @notify_switch.handle()
 async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):

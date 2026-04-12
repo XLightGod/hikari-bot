@@ -6,6 +6,8 @@ from nonebot.permission import SUPERUSER
 from nonebot.exception import FinishedException
 from hikari_bot.utils.whitelist import *
 from hikari_bot.utils.constants import *
+from hikari_bot.plugins.mycard_subscriber import ws_status_check
+from hikari_bot.plugins.cardrush_helper import cr_status_check
 from nonebot.matcher import Matcher
 import base64
 import re
@@ -17,6 +19,14 @@ driver = get_driver()
 async def _on_bot_connect(bot: Bot):
     await message_superusers("早上好！")
 
+status = on_command("状态查询", permission=SUPERUSER)
+@status.handle()
+async def _(bot: Bot, event: MessageEvent):
+    ws_status = ws_status_check()
+    cr_status = cr_status_check()
+    status_message = f"服务器状态：\n- MyCard监控：{'在线' if ws_status else '离线'}\n- CardRush监控：{'在线' if cr_status else '离线'}"
+    await status.finish(status_message)
+
 
 help_pic = os.path.join(RESOURCES_DIR, 'help.png')
 help = on_command("帮助", priority=5)
@@ -26,6 +36,7 @@ async def _(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
         image_data = f.read()
     image_base64 = base64.b64encode(image_data).decode("utf-8")
     await help.finish(Message([MessageSegment.image(f"base64://{image_base64}")]))
+
 
 version = on_command("版本查询", permission=SUPERUSER)
 @version.handle()
