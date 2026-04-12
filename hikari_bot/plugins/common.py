@@ -13,7 +13,7 @@ import base64
 import re
 import asyncio
 import os
-
+from datetime import datetime
 
 driver = get_driver()
 log_file = driver.state.log_file
@@ -43,12 +43,56 @@ async def log_message(message: str):
             f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
 
 
+def get_bot_startup_info():
+    """从日志文件名中提取启动时间并计算运行时长"""
+    if not log_file:
+        return "未知", "未知"
+    
+    try:
+        filename = os.path.basename(log_file)
+        match = re.search(r'bot_log_(\d{8})_(\d{6})\.log', filename)
+        
+        if match:
+            date_str, time_str = match.groups()
+            startup_time = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+            
+            # 计算运行时长
+            current_time = datetime.now()
+            uptime = current_time - startup_time
+            
+            # 格式化启动时间
+            startup_str = startup_time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # 格式化运行时长
+            days = uptime.days
+            hours, remainder = divmod(uptime.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            
+            if days > 0:
+                uptime_str = f"{days}天{hours}小时{minutes}分钟"
+            elif hours > 0:
+                uptime_str = f"{hours}小时{minutes}分钟"
+            else:
+                uptime_str = f"{minutes}分钟{seconds}秒"
+            
+            return startup_str, uptime_str
+        else:
+            return "解析失败", "未知"
+    except Exception as e:
+        return f"获取失败: {e}", "未知"
+
 status = on_command("状态查询", permission=SUPERUSER)
 @status.handle()
 async def _(bot: Bot, event: MessageEvent):
     ws_status = ws_status_check()
     cr_status = cr_status_check()
-    status_message = f"服务器状态：\n- MyCard监控：{'在线' if ws_status else '离线'}\n- CardRush监控：{'在线' if cr_status else '离线'}"
+    startup_time, uptime = get_bot_startup_info()
+    
+    status_message = f"""服务器状态：
+- 启动时间：{startup_time}
+- 运行时长：{uptime}
+- MyCard监控：{'在线' if ws_status else '离线'}
+- CardRush监控：{'在线' if cr_status else '离线'}"""
     await status.finish(status_message)
 
 
